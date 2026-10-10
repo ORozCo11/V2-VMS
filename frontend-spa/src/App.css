@@ -14546,3 +14546,28 @@ html .subissue-card-head .subissue-title { flex: 1 1 180px; min-width: 0; overfl
 @media (max-width: 900px) {
   .ticket-summary-filters .issue-filter-panel { grid-template-columns: minmax(0, 1fr); }
 }
+/* Stat-card rows stay on ONE line on desktop (Total + every bucket), however
+   many cards a module has: columns come from --stat-cols (set by
+   ModuleStatCards / the dashboard), tiles are compact and labels never
+   wrap. Below 1100px they fall back to a wrapping grid. */
+html .metric-grid.stat-one-line { grid-template-columns: repeat(var(--stat-cols, 4), minmax(0, 1fr)) !important; gap: 8px; }
+html .metric-grid.stat-one-line .metric-card-iconic { gap: 8px; padding: 12px 10px; min-width: 0; }
+html .metric-grid.stat-one-line .metric-card-iconic .metric-card-icon { width: 30px; height: 30px; border-radius: 8px; }
+html .metric-grid.stat-one-line .metric-card-iconic .metric-card-body { min-width: 0; }
+html .metric-grid.stat-one-line .metric-card-iconic .metric-card-body span {
+  font-size: 0.62rem; letter-spacing: 0.04em; margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+html .metric-grid.stat-one-line .metric-card-iconic .metric-card-body strong { font-size: 1.25rem; }
+@media (max-width: 1100px) {
+  html .metric-grid.stat-one-line { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 700px) {
+  html .metric-grid.stat-one-line { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+/* Ticket cards: a larger ticket number up top, with Status and Priority
+   capsules sitting side by side at the bottom. */
+.ticket-card-top { margin-bottom: 8px; }
+html .ticket-card-id { font-size: 1rem; font-weight: 800; letter-spacing: 0.04em; }
+.ticket-card-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

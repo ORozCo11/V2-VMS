@@ -5613,7 +5613,7 @@ function Dashboard({ data, hubs = null, user, basePath, onNavigate, onGoToSchedu
           style, including the three "watch" counts (issues / upcoming /
           overdue) that used to sit right below in a third, slimmer card style
           for no reason other than to de-emphasise them. */}
-      <section className="metric-grid dashboard-headline-grid full-span">
+      <section className="metric-grid stat-one-line dashboard-headline-grid full-span" style={{ '--stat-cols': data.metrics.length }}>
         {data.metrics.map((metric) => {
           const style = DASHBOARD_METRIC_STYLES[metric.label] ?? DASHBOARD_METRIC_STYLE_DEFAULT;
 
@@ -9223,7 +9223,7 @@ function ModuleStatCards({ totalLabel = 'Total', total, cards, counts, activeFil
   const isFilterMulti = Array.isArray(activeFilter);
   const isTotalActive = isFilterMulti ? activeFilter.length === 0 : !activeFilter;
   return (
-    <section className={`metric-grid${gridClassName ? ` ${gridClassName}` : ''}`} aria-label="Status summary" style={{ marginBottom: '16px' }}>
+    <section className={`metric-grid stat-one-line${gridClassName ? ` ${gridClassName}` : ''}`} aria-label="Status summary" style={{ marginBottom: '16px', '--stat-cols': cards.length + 1 }}>
       <button
         type="button"
         className={`metric-card metric-card-iconic stat-filter-card${isTotalActive ? ' is-active' : ''}`}
@@ -15888,7 +15888,6 @@ function TicketCard({ ticket, unreadCount = 0, onClick }) {
         <div className="ticket-card-info">
           <div className="ticket-card-top">
             <span className="ticket-card-id">Ticket #{ticket.ticket_id}</span>
-            <TicketStatusBadge value={ticket.priority} />
           </div>
           <p className="ticket-card-title">{ticket.ticket_title}</p>
           <p className="ticket-card-vehicle">{ticket.vehicle?.vehicle_name} · {ticket.vehicle?.plate_number}</p>
@@ -15918,7 +15917,10 @@ function TicketCard({ ticket, unreadCount = 0, onClick }) {
         {stage && <TicketStageBadge ticket={ticket} />}
       </div>
       <div className="ticket-card-bottom">
-        <TicketStatusBadge value={ticket.status} />
+        <div className="ticket-card-badges">
+          <TicketStatusBadge value={ticket.status} />
+          <TicketStatusBadge value={ticket.priority} />
+        </div>
         <DateBadge value={ticket.created_at} />
       </div>
     </div>
