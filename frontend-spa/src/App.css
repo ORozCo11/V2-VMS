@@ -14585,3 +14585,26 @@ html .ticket-card.tc-cancelled { --tc: #94a3b8; }
 html .ticket-card:hover { border-color: var(--tc); box-shadow: 0 10px 28px rgba(15,23,42,0.14); }
 html[data-theme] .ticket-card { border-width: 2px; border-top-width: 5px; border-color: var(--tc); }
 html[data-theme] .ticket-card:hover { border-color: var(--tc); }
+
+/* Issue Reports filter bar: every filter + the Filter button on ONE line.
+   Fields share the row equally and may shrink (the bar sits in a narrow
+   column beside Latest Reports), so nothing wraps or overlaps. */
+.issue-filter-panel.is-inline { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 8px; min-width: 0; }
+.issue-filter-panel.is-inline .filter-date-group { flex: 1 1 0; min-width: 0; }
+.issue-filter-panel.is-inline .filter-date-group > * { min-width: 0; width: 100%; box-sizing: border-box; }
+.issue-filter-panel.is-inline .filter-date-group .multi-select-dropdown > * { box-sizing: border-box; max-width: 100%; }
+.issue-filter-panel.is-inline .date-filter-input { min-width: 0; }
+.issue-filter-panel.is-inline .filter-date-group > span { white-space: nowrap; font-size: 0.66rem; }
+.issue-filter-panel.is-inline .issue-filter-apply-btn.is-inline { flex: 0 0 auto; width: auto; min-width: 72px; padding: 0 16px; }
+
+/* Issue Reports: Note column + "…" actions menu. */
+.issue-note-cell { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8rem; color: #475569; line-height: 1.35; }
+.row-actions-trigger { width: 32px; height: 28px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: 1.1rem; font-weight: 800; line-height: 1; cursor: pointer; letter-spacing: 1px; }
+.row-actions-trigger:hover, .row-actions-trigger[aria-expanded="true"] { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.row-actions-popover { position: fixed; z-index: 3000; display: flex; gap: 6px; padding: 8px; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; box-shadow: 0 10px 28px rgba(15,23,42,0.18); }
+
+/* Vehicle thumbnails in every table (History, Issues, Tickets, Records…)
+   were too small to recognise a vehicle — one shared, larger size. */
+html .table-shell .vehicle-cell { gap: 10px; }
+html .table-shell .vehicle-cell .photo-thumb,
+html .table-shell.is-compact .vehicle-cell .photo-thumb { width: 68px; height: 48px; border-radius: 8px; object-fit: cover; }

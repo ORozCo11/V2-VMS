@@ -144,6 +144,25 @@ class TicketController extends Controller
         return $ticket;
     }
 
+    private function mechanicsWithWorkload(?int $barangayId)
+    {
+        $tickets = MaintenanceTicket::whereIn('status', ['Active', 'For Verification'])
+            ->whereNotNull('assigned_mechanic_id')
+            ->selectRaw('assigned_mechanic_id, COUNT(*) as n')
+            ->groupBy('assigned_mechanic_id')->pluck('n', 'assigned_mechanic_id');
+        $schedules = VehicleMaintenanceSchedule::where('status', 'Scheduled')
+            ->whereNotNull('assigned_to')
+            ->selectRaw('assigned_to, COUNT(*) as n')
+            ->groupBy('assigned_to')->pluck('n', 'assigned_to');
+
+        return User::where('barangay_id', $barangayId)->havingRole('Maintenance Personnel')->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->each(function ($m) use ($tickets, $schedules) {
+                $m->setAttribute('active_tickets', (int) ($tickets[$m->id] ?? 0));
+                $m->setAttribute('scheduled_jobs', (int) ($schedules[$m->id] ?? 0));
+            });
+    }
+
     public function lookups(Request $request)
     {
         return response()->json([
@@ -154,7 +173,10 @@ class TicketController extends Controller
             // User carries no global scope — filter by barangay by hand,
             // or a ticket could get assigned to staff from another barangay.
             'custodians'            => User::where('barangay_id', $request->user()->barangay_id)->havingRole('Custodian')->orderBy('name')->get(['id', 'name', 'email', 'photo_url']),
-            'maintenance_personnel' => User::where('barangay_id', $request->user()->barangay_id)->havingRole('Maintenance Personnel')->orderBy('name')->get(['id', 'name', 'email']),
+            // Each mechanic's current load rides along so Admin/Custodian can
+            // balance work before picking one: tickets still in their hands
+            // (Active or awaiting verification) and approved schedules waiting.
+            'maintenance_personnel' => $this->mechanicsWithWorkload($request->user()->barangay_id),
             'priorities'            => $this->priorities,
             'maintenance_types'     => MaintenanceType::orderBy('name')->pluck('name'),
             // 'Pending Approval' included so a Custodian's proposal has a

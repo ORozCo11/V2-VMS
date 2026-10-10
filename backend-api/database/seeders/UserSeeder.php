@@ -35,7 +35,9 @@ class UserSeeder extends Seeder
             'admin@barangay.gov',
             'custodian@barangay.gov',
             'custodian2@barangay.gov',
-            'maintenance@barangay.gov'
+            'maintenance@barangay.gov',
+            'maintenance2@barangay.gov',
+            'maintenance3@barangay.gov',
         ])->delete();
 
         // Same convention as FleetReferenceSeeder::seedDefaultHubs() — these
@@ -83,6 +85,20 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Jake Engana',
                 'email' => 'maintenance@barangay.gov',
+                'password' => 'maintenance123',
+                'role' => 'Maintenance Personnel',
+                'barangay_id' => $paknaanId,
+            ],
+            [
+                'name' => 'Rohan Naveo',
+                'email' => 'maintenance2@barangay.gov',
+                'password' => 'maintenance123',
+                'role' => 'Maintenance Personnel',
+                'barangay_id' => $paknaanId,
+            ],
+            [
+                'name' => 'Mia Santos',
+                'email' => 'maintenance3@barangay.gov',
                 'password' => 'maintenance123',
                 'role' => 'Maintenance Personnel',
                 'barangay_id' => $paknaanId,

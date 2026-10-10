@@ -4014,7 +4014,6 @@ function Workspace() {
             emptyMessage="No issues reported — the fleet has no open problems right now."
             rows={visibleRows}
             onRowClick={(row) => row.vehicle && openVehicleProfile(row.vehicle)}
-            renderSubRow={(row) => row.issue_description && <span><strong>Note:</strong> {row.issue_description}</span>}
           />
         </ModulePanel>
       );
@@ -9775,17 +9774,6 @@ function IssueFilterPanel({
     });
   };
 
-  // Same "empty selection means every level is included" convention as
-  // status above — a severity checkbox reads checked by default until one
-  // gets explicitly unchecked.
-  const toggleDraftSeverity = (level) => {
-    setDraft((d) => {
-      const current = d.severity.length === 0 ? severityLevels : d.severity;
-      const next = current.includes(level) ? current.filter((s) => s !== level) : [...current, level];
-      return { ...d, severity: next.length === severityLevels.length ? [] : next };
-    });
-  };
-
   const applyFilters = () => {
     setFilterCategory(draft.category);
     setFilterCapacity(draft.capacity);
@@ -9805,78 +9793,56 @@ function IssueFilterPanel({
     || draft.dateEnd !== (filterDateEnd || '2026-12-31');
 
   return (
-    <div className="issue-filter-panel">
-      <div className="issue-filter-row">
-        <div className="filter-date-group">
-          <span>Category</span>
-          <MultiSelectDropdown
-            placeholder="All Categories"
-            options={categories.map((cat) => ({ value: String(cat.category_id), label: cat.category_name }))}
-            selected={draft.category}
-            onChange={(vals) => setDraft((d) => ({ ...d, category: vals }))}
-          />
-        </div>
-        <div className="filter-date-group">
-          <span>Capacity</span>
-          <MultiSelectDropdown
-            placeholder="All Capacities"
-            options={capacities}
-            selected={draft.capacity}
-            onChange={(vals) => setDraft((d) => ({ ...d, capacity: vals }))}
-          />
-        </div>
-        <div className="filter-date-group">
-          <span>Issue Type</span>
-          <MultiSelectDropdown
-            placeholder="All Issue Types"
-            options={issueTypes}
-            selected={draft.issueType}
-            onChange={(vals) => setDraft((d) => ({ ...d, issueType: vals }))}
-          />
-        </div>
+    <div className="issue-filter-panel is-inline">
+      <div className="filter-date-group">
+        <span>Category</span>
+        <MultiSelectDropdown
+          placeholder="All Categories"
+          options={categories.map((cat) => ({ value: String(cat.category_id), label: cat.category_name }))}
+          selected={draft.category}
+          onChange={(vals) => setDraft((d) => ({ ...d, category: vals }))}
+        />
       </div>
-      {/* Second grid column of the TOP row — same track as the status
-          chips + Filter button below it, so the two rows' right edges
-          line up instead of the dates sitting narrower than that cluster. */}
-      <div className="issue-filter-dates">
-        <div className="filter-date-group issue-filter-date-input">
-          <span>From Date</span>
-          <DateFilterInput value={draft.dateStart} onChange={(val) => setDraft((d) => ({ ...d, dateStart: val }))} />
-        </div>
-        <div className="filter-date-group issue-filter-date-input">
-          <span>To Date</span>
-          <DateFilterInput value={draft.dateEnd} onChange={(val) => setDraft((d) => ({ ...d, dateEnd: val }))} />
-        </div>
+      <div className="filter-date-group">
+        <span>Capacity</span>
+        <MultiSelectDropdown
+          placeholder="All Capacities"
+          options={capacities}
+          selected={draft.capacity}
+          onChange={(vals) => setDraft((d) => ({ ...d, capacity: vals }))}
+        />
       </div>
-
-      {/* Low/Medium/High used to be a range slider (pick a contiguous span
-          of the scale) — plain checkboxes instead, same chip style as the
-          status group below, since severity is really just another
-          multi-select and the slider made picking e.g. "Low + High only"
-          impossible. Colors match the Issue Reports bar chart's own
-          High/Medium/Low segments. */}
-      <div className="issue-filter-severity-card">
-        <span className="issue-filter-severity-label">Severity</span>
-        <div className="issue-filter-status-grid">
-          {severityLevels.map((level) => (
-            <label key={level} className="issue-filter-status-chip" style={{ background: ISSUE_SEVERITY_CHIP_BG[level] ?? '#f1f5f9' }}>
-              <input type="checkbox" checked={draft.severity.length === 0 || draft.severity.includes(level)} onChange={() => toggleDraftSeverity(level)} />
-              <span style={{ color: ISSUE_SEVERITY_CHIP_COLOR[level] ?? '#334155' }}>{level}</span>
-            </label>
-          ))}
-        </div>
+      <div className="filter-date-group">
+        <span>Issue Type</span>
+        <MultiSelectDropdown
+          placeholder="All Issue Types"
+          options={issueTypes}
+          selected={draft.issueType}
+          onChange={(vals) => setDraft((d) => ({ ...d, issueType: vals }))}
+        />
       </div>
-      {/* The status chips (Pending/Under Review/In Maintenance/Resolved)
-          that used to live here were a plain duplicate of the stat cards
-          at the top of the page — same four statuses, same counts, just a
-          second way to toggle them. Removed; the Filter button keeps its
-          own row instead of sharing a cell with chips that no longer
-          exist. */}
-      <div className="issue-filter-right-cluster">
-        <div className="issue-filter-actions">
-          <button type="button" className="filter-apply-btn issue-filter-apply-btn" onClick={applyFilters} disabled={!isDirty}>Filter</button>
-        </div>
+      {/* Severity used to be a card of three coloured checkboxes that pushed
+          the Filter button onto a second line; it's now a dropdown like the
+          other filters (same multi-select, empty = all) so the whole filter
+          bar sits on one line. */}
+      <div className="filter-date-group">
+        <span>Severity</span>
+        <MultiSelectDropdown
+          placeholder="All Severities"
+          options={severityLevels.map((level) => ({ value: level, label: level }))}
+          selected={draft.severity}
+          onChange={(vals) => setDraft((d) => ({ ...d, severity: vals.length === severityLevels.length ? [] : vals }))}
+        />
       </div>
+      <div className="filter-date-group">
+        <span>From Date</span>
+        <DateFilterInput value={draft.dateStart} onChange={(val) => setDraft((d) => ({ ...d, dateStart: val }))} />
+      </div>
+      <div className="filter-date-group">
+        <span>To Date</span>
+        <DateFilterInput value={draft.dateEnd} onChange={(val) => setDraft((d) => ({ ...d, dateEnd: val }))} />
+      </div>
+      <button type="button" className="filter-apply-btn issue-filter-apply-btn is-inline" onClick={applyFilters} disabled={!isDirty}>Filter</button>
     </div>
   );
 }
@@ -10096,13 +10062,55 @@ function issueIsPreTicket(row) {
   return !row.maintenance_ticket || ['Pending Approval', 'Declined'].includes(row.maintenance_ticket.status);
 }
 
+// Collapses a row's action icons behind a single "…" button; clicking it
+// opens a small popover with the icons (rendered in a portal so table
+// overflow never clips it). Keeps narrow Action columns tidy.
+function RowActionsMenu({ children }) {
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+  useEffect(() => {
+    if (!pos) return undefined;
+    const close = (e) => {
+      if (popRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return;
+      setPos(null);
+    };
+    const dismiss = () => setPos(null);
+    document.addEventListener('mousedown', close);
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss);
+    };
+  }, [pos]);
+  const toggle = (e) => {
+    e.stopPropagation();
+    if (pos) { setPos(null); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+  };
+  return (
+    <>
+      <button ref={btnRef} type="button" className="row-actions-trigger" onClick={toggle} title="Actions" aria-label="Actions" aria-haspopup="true" aria-expanded={!!pos}>…</button>
+      {pos && createPortal(
+        <div ref={popRef} className="row-actions-popover" style={{ top: pos.top, right: pos.right }} role="menu" onClick={() => setPos(null)}>
+          {children}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 function issueColumns(role, onEdit, onCreateTicketFromIssue, setUserInfoTarget, onView, deleteRecord, user, onViewTicket, onDismiss) {
   const columns = [
-    { key: 'id', label: 'ID', width: '5%', locked: true, className: 'cell-center', render: (row) => row.issue_report_id },
+    { key: 'id', label: 'ID', width: '4%', locked: true, className: 'cell-center', render: (row) => row.issue_report_id },
     {
       key: 'issue',
       label: 'Issue',
-      width: '12%',
+      width: '10%',
       render: (row) => (
         <div className="issue-cell">
           <div className="issue-cell-top">
@@ -10111,10 +10119,10 @@ function issueColumns(role, onEdit, onCreateTicketFromIssue, setUserInfoTarget, 
         </div>
       ),
     },
-    { key: 'vehicle', label: 'Vehicle', width: '28%', render: (row) => <VehicleCell vehicle={row.vehicle} /> },
-    { key: 'plate', label: 'Plate Number', width: '7%', className: 'cell-center', render: (row) => row.vehicle?.plate_number ?? '-' },
-    { key: 'severity', label: 'Severity', width: '9%', className: 'cell-center', render: (row) => <TicketStatusBadge value={row.severity_level} /> },
-    { key: 'status', label: 'Status', width: '9%', className: 'cell-center', render: (row) => <StatusBadge value={row.status} /> },
+    { key: 'vehicle', label: 'Vehicle', width: '19%', render: (row) => <VehicleCell vehicle={row.vehicle} /> },
+    { key: 'plate', label: 'Plate Number', width: '8%', className: 'cell-center', render: (row) => row.vehicle?.plate_number ?? '-' },
+    { key: 'severity', label: 'Severity', width: '8%', className: 'cell-center', render: (row) => <TicketStatusBadge value={row.severity_level} /> },
+    { key: 'status', label: 'Status', width: '10%', className: 'cell-center', render: (row) => <StatusBadge value={row.status} /> },
     {
       key: 'reported_by',
       label: 'Reported By',
@@ -10126,16 +10134,24 @@ function issueColumns(role, onEdit, onCreateTicketFromIssue, setUserInfoTarget, 
           : <span className="issue-reporter">-</span>
       ),
     },
-    { key: 'date', label: 'Date', width: '9%', className: 'cell-center', render: (row) => <DateBadge value={row.created_at} /> },
+    { key: 'date', label: 'Date', width: '7%', className: 'cell-center', render: (row) => <DateBadge value={row.created_at} /> },
+    {
+      key: 'note',
+      label: 'Note',
+      width: '10%',
+      render: (row) => (row.issue_description
+        ? <span className="issue-note-cell" title={row.issue_description}>{row.issue_description}</span>
+        : <span className="muted">—</span>),
+    },
   ];
 
   // Which ticket (if any) this report became — a link, or a dash when nobody
   // has started one. Only roles that can open tickets see it.
   if (['Admin', 'Custodian'].includes(role) && onViewTicket) {
-    columns.splice(columns.length - 1, 0, {
+    columns.splice(columns.findIndex((c) => c.key === 'date'), 0, {
       key: 'ticket',
       label: 'Ticket',
-      width: '8%',
+      width: '7%',
       className: 'cell-center',
       render: (row) => (row.maintenance_ticket
         ? (
@@ -10155,11 +10171,11 @@ function issueColumns(role, onEdit, onCreateTicketFromIssue, setUserInfoTarget, 
     columns.push({
       key: 'action',
       label: 'Action',
-      width: '10%',
+      width: '6%',
       locked: true,
       className: 'cell-center',
       render: (row) => (
-        <div className="row-actions" style={{ flexWrap: 'nowrap' }}>
+        <RowActionsMenu>
           {row.maintenance_ticket && onViewTicket ? (
             <button className="btn-view-action icon-btn" onClick={() => onViewTicket({ ticket_id: row.maintenance_ticket.ticket_id })} type="button" title={`View Ticket #${row.maintenance_ticket.ticket_id}`} aria-label={`View Ticket #${row.maintenance_ticket.ticket_id}`}><Icon name="eye" size={14} /></button>
           ) : (
@@ -10177,7 +10193,7 @@ function issueColumns(role, onEdit, onCreateTicketFromIssue, setUserInfoTarget, 
           {(canDo(user, 'ticket.create') || canDo(user, 'ticket.propose')) && ['Pending', 'Under Review'].includes(row.status) && !row.maintenance_ticket && (
             <button className="btn-confirm-action icon-btn" onClick={() => onCreateTicketFromIssue(row)} type="button" title={canDo(user, 'ticket.propose') ? 'Propose Ticket' : 'Create Ticket'} aria-label={canDo(user, 'ticket.propose') ? 'Propose Ticket' : 'Create Ticket'}><Icon name="ticket" size={14} /></button>
           )}
-        </div>
+        </RowActionsMenu>
       ),
     });
   }
@@ -10185,10 +10201,10 @@ function issueColumns(role, onEdit, onCreateTicketFromIssue, setUserInfoTarget, 
   if (role === 'Custodian') {
     columns.push({
       label: 'Action',
-      width: '10%',
+      width: '6%',
       className: 'cell-center',
       render: (row) => (
-        <div className="row-actions" style={{ flexWrap: 'nowrap' }}>
+        <RowActionsMenu>
           {row.maintenance_ticket && onViewTicket ? (
             <button className="btn-view-action icon-btn" onClick={() => onViewTicket({ ticket_id: row.maintenance_ticket.ticket_id })} type="button" title={`View Ticket #${row.maintenance_ticket.ticket_id}`} aria-label={`View Ticket #${row.maintenance_ticket.ticket_id}`}><Icon name="eye" size={14} /></button>
           ) : (
@@ -10205,7 +10221,7 @@ function issueColumns(role, onEdit, onCreateTicketFromIssue, setUserInfoTarget, 
               <button className="btn-delete-action icon-btn" onClick={() => deleteRecord(`/issues/${row.issue_report_id}`, 'Issue deleted.', `Delete this "${row.issue_type}" report for ${row.vehicle?.vehicle_name ?? 'this vehicle'}? This cannot be undone.`)} type="button" title="Delete" aria-label="Delete"><Icon name="trash" size={14} /></button>
             </>
           )}
-        </div>
+        </RowActionsMenu>
       ),
     });
   }
@@ -12679,7 +12695,7 @@ function TicketProposalReviewForm({ ticket, lookups, onApprove, onDecline, onUnd
             <span>Assign Mechanic <span className="required-asterisk">*</span></span>
             <select value={fields.assigned_mechanic_id} onChange={(e) => setField('assigned_mechanic_id', e.target.value)}>
               <option value="">Select who will do this repair</option>
-              {(lookups.maintenance_personnel ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              {(lookups.maintenance_personnel ?? []).map((m) => <option key={m.id} value={m.id}>{mechanicWorkloadLabel(m)}</option>)}
             </select>
           </label>
         </div>
@@ -12762,6 +12778,15 @@ function TicketProposalReviewForm({ ticket, lookups, onApprove, onDecline, onUnd
 // never both at once, which is what makes Edit/Delete on the right
 // unambiguous. Shared by the Custodian's Propose form and the ticket's own
 // "Add Sub-issue" panel so both look and behave the same way.
+// "Jake Engana — 5 active tickets": the mechanic's current load, so whoever
+// is assigning (or suggesting) can balance work and reassign if needed.
+function mechanicWorkloadLabel(m) {
+  const t = Number(m.active_tickets ?? 0);
+  const j = Number(m.scheduled_jobs ?? 0);
+  if (m.active_tickets == null) return m.name;
+  return `${m.name} — ${t} active ticket${t === 1 ? '' : 's'}${j ? ` · ${j} scheduled` : ''}`;
+}
+
 function TwoColumnSubIssueEditor({ items, onChange, maintenanceTypeOptions, mechanicOptions, minItems = 1 }) {
   const [draft, setDraft] = useState({ index: null, title: '', maintenance_type: '', suggested_mechanic_id: '' });
   const isEditing = draft.index !== null;
@@ -12832,7 +12857,7 @@ function TwoColumnSubIssueEditor({ items, onChange, maintenanceTypeOptions, mech
               onChange={(e) => setDraft((d) => ({ ...d, suggested_mechanic_id: e.target.value }))}
             >
               <option value="">Unassigned — Admin will decide</option>
-              {mechanicOptions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              {mechanicOptions.map((m) => <option key={m.id} value={m.id}>{mechanicWorkloadLabel(m)}</option>)}
             </select>
           </label>
         )}
@@ -13171,7 +13196,7 @@ function TicketDetailPanel({ user, userId, ticket, lookups, onAddSubIssue, onEdi
                 </p>
                 <SmartForm
                   fields={[
-                    { label: 'Reassign to Mechanic', name: 'assigned_mechanic_id', options: (lookups.maintenance_personnel ?? []).filter((m) => m.id !== ticket.assigned_mechanic_id).map((m) => ({ value: m.id, label: m.name })), required: true, type: 'select' },
+                    { label: 'Reassign to Mechanic', name: 'assigned_mechanic_id', options: (lookups.maintenance_personnel ?? []).filter((m) => m.id !== ticket.assigned_mechanic_id).map((m) => ({ value: m.id, label: mechanicWorkloadLabel(m) })), required: true, type: 'select' },
                     { label: 'Reason for reassigning', name: 'reassign_reason', required: true, type: 'textarea', rows: 2 },
                   ]}
                   key={`reassign-mechanic-${ticket.ticket_id}`}

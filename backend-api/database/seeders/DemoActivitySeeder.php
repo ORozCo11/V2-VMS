@@ -265,6 +265,18 @@ class DemoActivitySeeder extends Seeder
         $veh = $v['QuickCare Ambulance'];
         $record = $this->record($veh, 'Battery Replacement', 'Scheduled battery replacement (2 years old).', 'Replaced 12V battery and cleaned terminals.', '12V battery (NS70)', 6500, 'For Verification', $now->copy()->subDays(6), $now->copy()->subDays(6));
         $this->schedule($veh, 'Battery Replacement', $now->copy()->subDays(6), '08:30:00', 'Twinbee Hub', 'Completed', $this->custodian, $this->mechanic, 'Battery is two years old — replace before rainy season.', 24, ['resulting_maintenance_id' => $record->maintenance_id]);
+
+        // A second and third mechanic with their own scheduled work, so the
+        // mechanic pickers (which show each person's workload) have a real
+        // spread to compare: Jake 2, Rohan 3, Mia 1 scheduled jobs.
+        $rohan = User::where('email', 'maintenance2@barangay.gov')->first();
+        $mia = User::where('email', 'maintenance3@barangay.gov')->first();
+        if ($rohan && $mia) {
+            $this->schedule($v['Engine 23'], 'Oil Change', $now->copy()->addDays(1), '08:00:00', 'Paknaan Brgy Hall', 'Scheduled', $this->custodian, $rohan, 'Demo workload — 5,000 km oil change.', null);
+            $this->schedule($v['Metro EMS Ambulance'], 'Brake Service', $now->copy()->addDays(3), '10:00:00', 'Twinbee Hub', 'Scheduled', $this->custodian2, $rohan, 'Demo workload — brake pad check and fluid top-up.', null);
+            $this->schedule($v['Firehouse Engine 15'], 'Preventive Maintenance', $now->copy()->addDays(6), '09:00:00', 'Paknaan Gymnasium', 'Scheduled', $this->custodian, $rohan, 'Demo workload — pump and hose inspection.', 3);
+            $this->schedule($v['Engine 23'], 'Tire Replacement', $now->copy()->addDays(8), '13:30:00', 'Paknaan Brgy Hall', 'Scheduled', $this->custodian2, $mia, 'Demo workload — rotate and replace front tires.', null);
+        }
     }
 
     private function seedMaintenanceHistory($v): void
