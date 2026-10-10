@@ -2305,7 +2305,8 @@ function Workspace() {
     ),
     [user, navigate, deleteRecord, handleCreateTicketFromCondition, handleSuggestScheduleFromCondition],
   );
-  const conditionColumnChooser = useColumnChooser('vms_condition_columns', conditionColumnDefs);
+  const conditionColumnDefsWithNote = useMemo(() => withNoteColumn(conditionColumnDefs, (r) => r.observations, { label: 'Observations' }), [conditionColumnDefs]);
+  const conditionColumnChooser = useColumnChooser('vms_condition_columns', conditionColumnDefsWithNote);
 
   const issueColumnDefs = useMemo(
     () => issueColumns(user.role, (row) => navigate(`${roleRoutes[user.role]}/issues/${row.issue_report_id}/edit`), handleCreateTicketFromIssue, setUserInfoTarget, (row) => navigate(`${roleRoutes[user.role]}/issues/${row.issue_report_id}`), deleteRecord, user, openTicketProfile, setDismissIssueTarget),
@@ -2317,13 +2318,18 @@ function Workspace() {
     () => maintenanceColumns(user.role, (row) => navigate(`${roleRoutes[user.role]}/maintenance/${row.maintenance_id}/edit`), updateRecord, (row) => navigate(`${roleRoutes[user.role]}/maintenance/${row.maintenance_id}`), user),
     [user, navigate, updateRecord],
   );
-  const maintenanceColumnChooser = useColumnChooser('vms_maintenance_columns', maintenanceColumnDefs);
+  const maintenanceColumnDefsWithNote = useMemo(() => withNoteColumn(maintenanceColumnDefs, (r) => r.problem_reason, { label: 'Problem / Reason' }), [maintenanceColumnDefs]);
+  const maintenanceColumnChooser = useColumnChooser('vms_maintenance_columns', maintenanceColumnDefsWithNote);
 
   const maintenanceStatusColumnDefs = useMemo(
     () => maintenanceStatusColumns(setEditTarget, user.id),
     [user.id],
   );
-  const maintenanceStatusColumnChooser = useColumnChooser('vms_maintenance_status_columns', maintenanceStatusColumnDefs);
+  const maintenanceStatusColumnDefsWithNote = useMemo(
+    () => withNoteColumn(maintenanceStatusColumnDefs, (r) => [r.problem_reason, r.action_taken && `Action: ${r.action_taken}`].filter(Boolean).join(' — '), { label: 'Problem / Action' }),
+    [maintenanceStatusColumnDefs],
+  );
+  const maintenanceStatusColumnChooser = useColumnChooser('vms_maintenance_status_columns', maintenanceStatusColumnDefsWithNote);
 
   const scheduleColumnDefs = useMemo(
     () => scheduleColumns((row) => navigate(`${roleRoutes[user.role]}/schedules/${row.schedule_id}/edit`), deleteRecord, openCompleteSchedule, user, (row) => navigate(`${roleRoutes[user.role]}/maintenance/${row.resulting_maintenance_id}`), restoreRecord, setReassignScheduleTarget, openTicketProfile, approveSchedule, setDeclineScheduleTarget),
@@ -2331,7 +2337,8 @@ function Workspace() {
   );
   const scheduleColumnChooser = useColumnChooser('vms_schedule_columns', scheduleColumnDefs);
 
-  const vehicleHistoryColumnChooser = useColumnChooser('vms_vehicle_history_columns', historyColumns);
+  const historyColumnsWithNote = useMemo(() => withNoteColumn(historyColumns, (r) => r.description, { label: 'Description', width: '24%' }), []);
+  const vehicleHistoryColumnChooser = useColumnChooser('vms_vehicle_history_columns', historyColumnsWithNote);
 
   const logColumnDefs = useMemo(
     () => logColumns(lookups.vehicles, openVehicleProfile, openTicketProfile),
@@ -3920,7 +3927,6 @@ function Workspace() {
               emptyMessage="No condition checks logged yet — click the + button to record one."
               rows={conditionRows}
               onRowClick={(row) => row.vehicle && openVehicleProfile(row.vehicle)}
-              renderSubRow={(row) => row.observations}
             />
         </ModulePanel>
       );
@@ -4013,7 +4019,7 @@ function Workspace() {
             onReorderColumn={issueColumnChooser.reorderColumn}
             emptyMessage="No issues reported — the fleet has no open problems right now."
             rows={visibleRows}
-            onRowClick={(row) => row.vehicle && openVehicleProfile(row.vehicle)}
+            onRowClick={(row) => navigate(`${roleRoutes[user.role]}/issues/${row.issue_report_id}`)}
           />
         </ModulePanel>
       );
@@ -4111,7 +4117,6 @@ function Workspace() {
               rows={visibleRows}
               compact
               onRowClick={(row) => row.vehicle && openVehicleProfile(row.vehicle)}
-              renderSubRow={(row) => row.problem_reason}
             />
           )}
         </ModulePanel>
@@ -4143,7 +4148,6 @@ function Workspace() {
               emptyMessage="Nothing awaiting your verification right now."
               rows={visibleRows}
               onRowClick={(row) => row.vehicle && openVehicleProfile(row.vehicle)}
-              renderSubRow={(row) => subRowFields([['Problem / Reason', row.problem_reason], ['Action Taken', row.action_taken]])}
             />
           </ModulePanel>
           <FormModal open={!!editTarget} title={`Verify Maintenance #${editTarget?.maintenance_id}`} onClose={() => setEditTarget(null)}>
@@ -4361,7 +4365,6 @@ function Workspace() {
               onRowClick={(row) => row.vehicle && openVehicleProfile(row.vehicle)}
               pageSizeOptions={[10, 20, 40, 50]}
               initialPageSize={10}
-              renderSubRow={(row) => row.description}
             />
           )}
 
@@ -10062,6 +10065,23 @@ function issueIsPreTicket(row) {
   return !row.maintenance_ticket || ['Pending Approval', 'Declined'].includes(row.maintenance_ticket.status);
 }
 
+// A table's free-text description used to hang under each row as a grey
+// sub-row; it is now its own "Note" column (two clamped lines, full text on
+// hover) placed just before the Action column. `render` returns the text.
+function withNoteColumn(columns, render, { label = 'Note', width = '16%' } = {}) {
+  const note = {
+    key: 'note',
+    label,
+    width,
+    render: (row) => {
+      const text = render(row);
+      return text ? <span className="issue-note-cell" title={text}>{text}</span> : <span className="muted">—</span>;
+    },
+  };
+  const actionAt = columns.findIndex((c) => c.key === 'action' || c.key === 'actions' || c.label === 'Action');
+  return actionAt < 0 ? [...columns, note] : [...columns.slice(0, actionAt), note, ...columns.slice(actionAt)];
+}
+
 // Collapses a row's action icons behind a single "…" button; clicking it
 // opens a small popover with the icons (rendered in a portal so table
 // overflow never clips it). Keeps narrow Action columns tidy.
@@ -10119,7 +10139,7 @@ function issueColumns(role, onEdit, onCreateTicketFromIssue, setUserInfoTarget, 
         </div>
       ),
     },
-    { key: 'vehicle', label: 'Vehicle', width: '19%', render: (row) => <VehicleCell vehicle={row.vehicle} /> },
+    { key: 'vehicle', label: 'Vehicle', width: '19%', render: (row) => <VehicleCell vehicle={row.vehicle} link={false} /> },
     { key: 'plate', label: 'Plate Number', width: '8%', className: 'cell-center', render: (row) => row.vehicle?.plate_number ?? '-' },
     { key: 'severity', label: 'Severity', width: '8%', className: 'cell-center', render: (row) => <TicketStatusBadge value={row.severity_level} /> },
     { key: 'status', label: 'Status', width: '10%', className: 'cell-center', render: (row) => <StatusBadge value={row.status} /> },
@@ -11545,7 +11565,7 @@ function UserAvatarName({ user, fallback = '-' }) {
 // hovering anywhere in the row underlines this name too (row-title-text) —
 // leaving it on everywhere would underline two different "click targets"
 // at once on that one table.
-function VehicleCell({ vehicle, isRowTitle = true }) {
+function VehicleCell({ vehicle, isRowTitle = true, link = true }) {
   const actions = useContext(RowActionsContext);
 
   if (!vehicle) {
@@ -11557,7 +11577,7 @@ function VehicleCell({ vehicle, isRowTitle = true }) {
   return (
     <div className="vehicle-cell">
       <PhotoCell alt={vehicle.vehicle_name} url={vehicle.photo_url} />
-      {actions?.viewVehicle && vehicle.vehicle_id ? (
+      {link && actions?.viewVehicle && vehicle.vehicle_id ? (
         <button
           type="button"
           className="vehicle-cell-name cell-link"
@@ -16001,7 +16021,8 @@ function CustodianInspectionModule({
         : <TicketStageBadge ticket={r} />
     },
   ], [onOpenInspect]);
-  const inspectionColumnChooser = useColumnChooser('vms_custodian_inspection_columns', inspectionColumnDefs);
+  const inspectionColumnDefsWithNote = useMemo(() => withNoteColumn(inspectionColumnDefs, (r) => r.ticket_description, { label: 'Description' }), [inspectionColumnDefs]);
+  const inspectionColumnChooser = useColumnChooser('vms_custodian_inspection_columns', inspectionColumnDefsWithNote);
 
   return (
     <div className="module-grid">
@@ -16047,7 +16068,6 @@ function CustodianInspectionModule({
               onReorderColumn={inspectionColumnChooser.reorderColumn}
               rows={tickets}
               onRowClick={(row) => row.vehicle && onViewVehicle(row.vehicle)}
-              renderSubRow={(row) => row.ticket_description}
             />
           )
         }

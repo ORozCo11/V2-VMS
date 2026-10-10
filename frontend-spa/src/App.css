@@ -14608,3 +14608,33 @@ html[data-theme] .ticket-card:hover { border-color: var(--tc); }
 html .table-shell .vehicle-cell { gap: 10px; }
 html .table-shell .vehicle-cell .photo-thumb,
 html .table-shell.is-compact .vehicle-cell .photo-thumb { width: 68px; height: 48px; border-radius: 8px; object-fit: cover; }
+
+/* Ticket Details page: every section card gets the same blue header band as
+   the Review Proposal card, so the whole page reads as one design (same
+   gradient, white title, translucent icon chip), with the body padded below. */
+html .ticket-detail-panel.is-page .ticket-section:not(.proposal-review) { padding: 0 0 14px; overflow: hidden; border-color: #bfdbfe; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.08); }
+html .ticket-detail-panel.is-page .ticket-section:not(.proposal-review) > * { margin-left: 16px; margin-right: 16px; }
+html .ticket-detail-panel.is-page .ticket-section:not(.proposal-review) > h4 {
+  margin: 0 0 12px; padding: 11px 16px; border: 0;
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #3b82f6 100%);
+  color: #fff; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+}
+html .ticket-detail-panel.is-page .ticket-section:not(.proposal-review) > h4 svg { color: #fff; stroke: #fff; }
+html .ticket-detail-panel.is-page .ticket-section:not(.proposal-review) > h4 .ticket-subissue-toggle-all { color: #fff; opacity: 0.9; }
+html .ticket-detail-panel.is-page .ticket-section:not(.proposal-review) > h4 .count-badge,
+html .ticket-detail-panel.is-page .ticket-section:not(.proposal-review) > h4 .proposal-review-count { background: rgba(255, 255, 255, 0.22); color: #fff; }
+html .ticket-detail-panel.is-page .ticket-section:not(.proposal-review) > p { margin-left: 0; margin-right: 0; padding: 0 16px; }
+
+/* Dense tables: let the vehicle name wrap to two lines beside the photo
+   instead of being cut to a couple of letters. */
+html .table-shell .vehicle-cell .photo-thumb,
+html .table-shell.is-compact .vehicle-cell .photo-thumb { width: 60px; height: 44px; }
+html .table-shell .vehicle-cell .vcn-text {
+  white-space: normal; max-width: none;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere; line-height: 1.25;
+}
+html .table-shell .vehicle-cell .vehicle-cell-name { min-width: 0; text-align: left; }
+html .table-shell .vehicle-cell .vehicle-cell-name { flex: 1 1 0; min-width: 0; white-space: normal; }
+html .table-shell .vehicle-cell .vehicle-cell-name .vcn-text { width: 100%; }
