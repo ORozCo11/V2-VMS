@@ -14571,3 +14571,17 @@ html .metric-grid.stat-one-line .metric-card-iconic .metric-card-body strong { f
 .ticket-card-top { margin-bottom: 8px; }
 html .ticket-card-id { font-size: 1rem; font-weight: 800; letter-spacing: 0.04em; }
 .ticket-card-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* Ticket cards carry their status colour on the border (and a thicker top
+   edge) so state reads at a glance: Active amber, For Verification purple,
+   Closed green, Declined red, Proposal yellow, Cancelled grey. */
+html .ticket-card { border-width: 2px; border-top-width: 5px; --tc: #d9e6f8; border-color: var(--tc); }
+html .ticket-card.tc-active { --tc: #f59e0b; }
+html .ticket-card.tc-for-verification { --tc: #7c3aed; }
+html .ticket-card.tc-closed { --tc: #16a34a; }
+html .ticket-card.tc-declined { --tc: #dc2626; }
+html .ticket-card.tc-pending-approval { --tc: #eab308; }
+html .ticket-card.tc-cancelled { --tc: #94a3b8; }
+html .ticket-card:hover { border-color: var(--tc); box-shadow: 0 10px 28px rgba(15,23,42,0.14); }
+html[data-theme] .ticket-card { border-width: 2px; border-top-width: 5px; border-color: var(--tc); }
+html[data-theme] .ticket-card:hover { border-color: var(--tc); }

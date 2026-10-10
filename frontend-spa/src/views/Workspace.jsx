@@ -15871,7 +15871,7 @@ function TicketCard({ ticket, unreadCount = 0, onClick }) {
   const stage = ticketWorkflowStage(ticket);
 
   return (
-    <div className="ticket-card" style={{ position: 'relative' }} onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onClick()}>
+    <div className={`ticket-card tc-${String(ticket.status ?? "").toLowerCase().replace(/[^a-z]+/g, "-")}`} style={{ position: 'relative' }} onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onClick()}>
       {unreadCount > 0 && (
         <span
           title={`${unreadCount} unread update${unreadCount > 1 ? 's' : ''} on this ticket`}
