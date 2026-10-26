@@ -14,9 +14,11 @@ Your Staff Registration Code for **{{ $place }}** was not used in time, so your 
 
 To try again, fill out the registration form.
 
+@if ($showLinks)
 <x-mail::button :url="$registerUrl">
 Register again
 </x-mail::button>
+@endif
 
 @include('emails._signoff')
 </x-mail::message>

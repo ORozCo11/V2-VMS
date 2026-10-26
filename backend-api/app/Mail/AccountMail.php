@@ -43,6 +43,8 @@ class AccountMail extends Mailable
             'place' => implode(', ', array_filter(['Barangay '.($barangay?->name ?? $this->user->barangay_name), $barangay?->city?->name, $barangay?->city?->province?->name])),
             'loginUrl' => "{$frontend}/login",
             'registerUrl' => "{$frontend}/register",
+            // Link buttons only once VMS is deployed: a localhost link is dead on the recipient's device.
+            'showLinks' => ! in_array(parse_url($frontend, PHP_URL_HOST), ['localhost', '127.0.0.1', '::1'], true),
         ]);
     }
 }

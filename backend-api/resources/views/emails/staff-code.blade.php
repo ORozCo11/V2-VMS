@@ -19,9 +19,11 @@ Your appointment as the Administrator for **{{ $place }}** has been confirmed. H
 
 @include('emails._notice', ['tone' => 'red', 'title' => 'Keep this code private', 'text' => 'It gives Administrator access to your barangay. VMS staff will never ask you for it.'])
 
+@if ($showLinks)
 <x-mail::button :url="$loginUrl">
 Sign in to VMS
 </x-mail::button>
+@endif
 
 @include('emails._signoff')
 </x-mail::message>

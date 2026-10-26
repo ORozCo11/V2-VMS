@@ -14,9 +14,11 @@ Your VMS account is now active. You are now the Administrator for **{{ $place }}
     'Barangay' => $place,
 ]])
 
+@if ($showLinks)
 <x-mail::button :url="$loginUrl">
 Sign in to VMS
 </x-mail::button>
+@endif
 
 @include('emails._signoff')
 </x-mail::message>
