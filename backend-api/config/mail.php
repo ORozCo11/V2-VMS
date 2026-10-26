@@ -115,4 +115,7 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    // Embed the white gear PNG in the email header (cid:vms-gear@vms). Set to false to send without it.
+    'inline_logo' => env('MAIL_INLINE_LOGO', true),
+
 ];

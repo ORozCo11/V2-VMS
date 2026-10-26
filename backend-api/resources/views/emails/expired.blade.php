@@ -1,9 +1,16 @@
 <x-mail::message>
+@include('emails._eyebrow', ['label' => 'Registration expired', 'tone' => 'red'])
+
 # Your VMS registration has expired
 
 Hi **{{ $firstName }}**,
 
-Your Staff Registration Code for **{{ $place }}** expired on {{ $expiresAt->timezone('Asia/Manila')->format('F j, Y g:i A') }} without being used, so your registration has been cancelled.
+Your Staff Registration Code for **{{ $place }}** was not used in time, so your registration has been cancelled.
+
+@include('emails._details', ['rows' => [
+    'Barangay' => $place,
+    'Code expired' => $expiresAt->timezone('Asia/Manila')->format('F j, Y g:i A'),
+]])
 
 To try again, fill out the registration form.
 
@@ -11,6 +18,5 @@ To try again, fill out the registration form.
 Register again
 </x-mail::button>
 
-VMS Support Center<br>
-{{ config('mail.from.address') }}
+@include('emails._signoff')
 </x-mail::message>
