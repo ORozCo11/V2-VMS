@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesAbilities;
 use App\Http\Controllers\Concerns\GuardsLastAdmin;
 use App\Http\Controllers\Concerns\GuardsOpenWorkOnDeactivation;
 use App\Mail\AccountMail;
+use App\Mail\ConcernReplyMail;
 use App\Models\ActivityLog;
 use App\Models\Barangay;
 use App\Models\ConcernReport;
@@ -1000,6 +1001,40 @@ class SuperAdminController extends Controller
         $this->log($request, 'Delete', "Deleted concern report #{$concernReport->id} (recoverable from Concern History).");
 
         return $concernReport->fresh('resolvedBy');
+    }
+
+    /**
+     * Emails the reporter back: "acknowledge" when the concern is received
+     * and being looked into, "resolved" once it has been handled. Only works
+     * when the reporter left an email address (the contact field is optional
+     * and may hold a phone number instead).
+     */
+    public function emailConcernReporter(Request $request, ConcernReport $concernReport)
+    {
+        $this->requireAbility($request, 'concern_report.email', 'Only a Super Admin can perform this action.');
+        $data = $request->validate([
+            'kind' => ['required', Rule::in(['acknowledge', 'resolved'])],
+            'subject' => ['required', 'string', 'max:150'],
+            'message' => ['required', 'string', 'max:5000'],
+        ]);
+        $email = trim((string) $concernReport->reporter_contact);
+        abort_unless(filter_var($email, FILTER_VALIDATE_EMAIL), 422, 'This reporter did not leave an email address, so they cannot be emailed.');
+        $sentColumn = $data['kind'] === 'resolved' ? 'resolved_email_at' : 'acknowledged_email_at';
+        abort_if($concernReport->{$sentColumn}, 409, $data['kind'] === 'resolved' ? 'The resolution email for this concern has already been sent.' : 'A reply for this concern has already been sent.');
+
+        try {
+            $sent = Mail::to($email)->send(new ConcernReplyMail($concernReport, $data['subject'], $data['message'], $data['kind'] === 'resolved'));
+            // Delivery trail: the Message-ID lets a missing email be found in the sender's Gmail (Sent, or a bounce).
+            \Illuminate\Support\Facades\Log::info("Concern #{$concernReport->id} reply emailed to {$email}", ['message_id' => $sent?->getMessageId(), 'subject' => $data['subject'], 'smtp' => preg_match('/< (250 2\.0\.0[ -~]*)/', (string) $sent?->getDebug(), $m) ? $m[1] : null]);
+        } catch (\Throwable $e) {
+            report($e);
+            abort(502, 'The email could not be sent. Check the mail settings and try again.');
+        }
+
+        $concernReport->update([$sentColumn => now()]);
+        $this->log($request, 'Edit', "Emailed the reporter of concern report #{$concernReport->id} ({$email}): {$data['subject']}");
+
+        return response()->json(['message' => "Email sent to {$email}.", 'report' => $concernReport->fresh('resolvedBy')]);
     }
 
     /** Brings a deleted concern report back to the open concerns. */

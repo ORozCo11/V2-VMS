@@ -16868,3 +16868,32 @@ html .report-preview-toolbar .ghost-button { background:#fff; border-color:#fff;
   html .filter-bar-container .workflow-status-controls .filter-date-group { width: 100%; min-width: 0; }
   html .filter-bar-container .workflow-status-controls .multi-select-trigger { width: 100%; }
 }
+
+/* Support concern form — province / city / barangay dropdowns. */
+.auth-input-plain select.concern-location-select {
+  appearance: none;
+  padding-right: 42px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+.concern-location-select:disabled { cursor: not-allowed; color: #94a3b8 !important; opacity: .75; }
+.concern-location-select option { color: #0f172a; background: #ffffff; }
+
+/* Support concern form — success state with a drawn check mark. */
+.support-success { display: grid; justify-items: center; gap: 10px; padding: 36px 16px 12px; text-align: center; animation: support-success-in .35s ease-out both; }
+.support-success h3 { margin: 6px 0 0; color: #0f172a; font-size: 1.35rem; font-weight: 800; }
+.support-success p { max-width: 440px; margin: 0 0 8px; color: #475569; line-height: 1.6; }
+.support-success-check { width: 84px; height: 84px; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.support-success-check circle { stroke: #16a34a; stroke-width: 3; fill: #dcfce7; stroke-dasharray: 151; stroke-dashoffset: 151; animation: support-check-draw .6s ease-out forwards; }
+.support-success-check path { stroke: #16a34a; stroke-width: 4; stroke-dasharray: 34; stroke-dashoffset: 34; animation: support-check-draw .35s .55s ease-out forwards; }
+@keyframes support-check-draw { to { stroke-dashoffset: 0; } }
+@keyframes support-success-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .support-success, .support-success-check circle, .support-success-check path { animation: none; stroke-dashoffset: 0; }
+}
+.support-success-again { padding: 10px 18px; border: 1.5px solid #bfdbfe; border-radius: 10px; color: #1d4ed8; background: #eff6ff; font: inherit; font-weight: 700; cursor: pointer; }
+.support-success-again:hover { background: #dbeafe; }
+.support-success-again:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.sa-email-sent { display: inline-flex; align-items: center; justify-content: center; color: #16a34a; background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 10px; cursor: default; }

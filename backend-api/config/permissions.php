@@ -230,4 +230,5 @@ return [
     'concern_report.resolve' => ['Super Admin'],
     'concern_report.reopen' => ['Super Admin'],
     'concern_report.delete' => ['Super Admin'],
+    'concern_report.email' => ['Super Admin'],
 ];

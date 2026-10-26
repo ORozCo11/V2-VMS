@@ -20,10 +20,14 @@ class ConcernReport extends Model
         'status',
         'resolved_by',
         'resolved_at',
+        'acknowledged_email_at',
+        'resolved_email_at',
     ];
 
     protected $casts = [
         'resolved_at' => 'datetime',
+        'acknowledged_email_at' => 'datetime',
+        'resolved_email_at' => 'datetime',
     ];
 
     public function resolvedBy()

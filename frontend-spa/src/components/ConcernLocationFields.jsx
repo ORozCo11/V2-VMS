@@ -37,16 +37,20 @@ export default function ConcernLocationFields({ value, onChange }) {
   }, [cityId]);
   return <>
     {[
-      { key: 'province_name', label: 'Province', rows: provinces, clear: { city_name: '', barangay_name: '' } },
-      { key: 'city_name', label: 'City / Municipality', rows: cities, clear: { barangay_name: '' } },
-      { key: 'barangay_name', label: 'Barangay', rows: barangays, clear: {} },
-    ].map(({ key, label, rows, clear }) => <label className={`auth-field${key === 'barangay_name' ? ' auth-field-full' : ''}`} key={key}>
+      { key: 'province_name', label: 'Province', rows: provinces, clear: { city_name: '', barangay_name: '' }, waitFor: null },
+      { key: 'city_name', label: 'City / Municipality', rows: cities, clear: { barangay_name: '' }, waitFor: provinceId ? null : 'province' },
+      { key: 'barangay_name', label: 'Barangay', rows: barangays, clear: {}, waitFor: cityId ? null : 'city / municipality' },
+    ].map(({ key, label, rows, clear, waitFor }) => <label className={`auth-field${key === 'barangay_name' ? ' auth-field-full' : ''}`} key={key}>
       <span>{label}</span>
       <div className="auth-input-wrapper auth-input-plain">
-        <input name={key} list={`${id}-${key}`} value={value[key] ?? ''} maxLength={255} autoComplete="off" placeholder={`Choose or type ${label.toLowerCase()}`} onChange={(event) => onChange({ ...clear, [key]: event.target.value })} />
-        <datalist id={`${id}-${key}`}>{rows.map((row) => <option key={row.id} value={row.name} />)}</datalist>
+        {lookupFailed
+          ? <input name={key} value={value[key] ?? ''} maxLength={255} autoComplete="off" placeholder={`Type ${label.toLowerCase()}`} onChange={(event) => onChange({ ...clear, [key]: event.target.value })} />
+          : <select id={`${id}-${key}`} name={key} className="concern-location-select" value={value[key] ?? ''} disabled={Boolean(waitFor)} onChange={(event) => onChange({ ...clear, [key]: event.target.value })}>
+            <option value="">{waitFor ? `Select a ${waitFor} first` : `Select ${label.toLowerCase()}`}</option>
+            {rows.map((row) => <option key={row.id} value={row.name}>{row.name}</option>)}
+          </select>}
       </div>
     </label>)}
-    <p className="auth-field-full muted">Location is optional. Choose a suggestion or type it manually.{lookupFailed ? ' Suggestions are unavailable; manual entry still works.' : ''}</p>
+    <p className="auth-field-full muted">Location is optional.{lookupFailed ? ' The location list is unavailable, so please type it instead.' : ''}</p>
   </>;
 }
