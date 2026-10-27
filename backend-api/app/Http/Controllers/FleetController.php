@@ -58,13 +58,17 @@ class FleetController extends Controller
         $barangayId = $request->user()->barangay_id;
         return response()->json([
             'categories' => VehicleCategory::with('fields')->orderBy('category_name')->get(),
-            'vehicles' => Vehicle::with('category')->withExists([
+            'vehicles' => Vehicle::with(['category', 'custodian:id,name'])->withExists([
                 'tickets as has_open_maintenance_ticket' => fn ($query) => $query->whereNotIn('status', ['Closed', 'Cancelled', 'Declined']),
             ])->orderBy('vehicle_name')->get(),
             'issue_reports' => VehicleIssueReport::with('vehicle')
                 ->whereNot('status', 'Resolved')
                 ->latest('issue_report_id')
                 ->get(),
+            'custodians' => User::where('barangay_id', $barangayId)
+                ->havingRole('Custodian')
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'maintenance_personnel' => User::where('barangay_id', $barangayId)
                 ->havingRole('Maintenance Personnel')
                 ->orderBy('name')
@@ -931,7 +935,7 @@ class FleetController extends Controller
     {
         $this->syncVehicleStatuses();
         $user = $request->user();
-        $query = Vehicle::with(['category', 'archivedBy']);
+        $query = Vehicle::with(['category', 'archivedBy', 'custodian:id,name']);
 
         // A pure Maintenance Personnel account only sees vehicles tied to
         // their own assigned sub-issues or schedules — not the whole
@@ -1040,7 +1044,7 @@ class FleetController extends Controller
             return $vehicle;
         });
 
-        return response()->json($vehicle->load('category'), 201);
+        return response()->json($vehicle->load(['category', 'custodian:id,name']), 201);
     }
 
     public function updateVehicle(Request $request, Vehicle $vehicle)
@@ -1081,7 +1085,7 @@ class FleetController extends Controller
             }
         });
 
-        return $vehicle->fresh('category');
+        return $vehicle->fresh(['category', 'custodian:id,name']);
     }
 
     public function archiveVehicle(Request $request, Vehicle $vehicle)
@@ -3526,6 +3530,7 @@ class FleetController extends Controller
             'engine_type' => [$domain === 'Water' ? 'required' : 'nullable', 'string', 'max:255'],
             'vehicle_color' => ['required', 'string', 'max:255', new TextOnly],
             'current_location' => ['required', 'string', 'max:255', Rule::in(VehicleHub::pluck('name'))],
+            'custodian_id' => ['nullable', 'integer'],
             'estimated_return_date' => ['nullable', 'date'],
             'photo' => ['nullable', 'image', 'max:4096'],
             'remarks' => ['nullable', 'string'],
@@ -3555,6 +3560,15 @@ class FleetController extends Controller
         $request->merge(['custom_fields' => $custom]);
 
         $data = $request->validate($this->vehicleRules($category?->domain ?? 'Land', $vehicle, $category), $this->vehicleRuleMessages());
+
+        // A Custodian registering a vehicle is its custodian unless they pick another.
+        if (!$vehicle && empty($data['custodian_id']) && $request->user()->hasRole('Custodian')) {
+            $data['custodian_id'] = $request->user()->id;
+        }
+        // User carries no global scope — keep the custodian inside this barangay.
+        if (!empty($data['custodian_id']) && !User::whereKey($data['custodian_id'])->where('barangay_id', $request->user()->barangay_id)->havingRole('Custodian')->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['custodian_id' => 'Choose a Custodian from your barangay.']);
+        }
 
         // On edit, keep values for archived fields the form no longer shows.
         if (!$request->user()->hasRole('Admin')) {

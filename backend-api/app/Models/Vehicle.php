@@ -32,6 +32,7 @@ class Vehicle extends Model
         'engine_type',
         'vehicle_color',
         'current_location',
+        'custodian_id',
         'photo_url',
         'remarks',
         'status',
@@ -68,6 +69,11 @@ class Vehicle extends Model
     public function category()
     {
         return $this->belongsTo(VehicleCategory::class, 'category_id', 'category_id');
+    }
+
+    public function custodian()
+    {
+        return $this->belongsTo(User::class, 'custodian_id');
     }
 
     public function archivedBy()

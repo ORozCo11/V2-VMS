@@ -6353,6 +6353,7 @@ const emptyLookups = {
   maintenance_personnel: [],
   maintenance_performers: [],
   issue_reports: [],
+  custodians: [],
   issue_types: [],
   maintenance_types: [],
   severity_levels: [],
@@ -6448,7 +6449,11 @@ function customFieldInputs(category, group) {
 }
 
 function vehicleWithCustomInitials(vehicle) {
-  return { ...vehicle, ...Object.fromEntries(Object.entries(vehicle?.custom_values ?? {}).map(([k, v]) => [`cf_${k}`, v])) };
+  return {
+    ...vehicle,
+    custodian_id: vehicle?.custodian_id != null ? String(vehicle.custodian_id) : '',
+    ...Object.fromEntries(Object.entries(vehicle?.custom_values ?? {}).map(([k, v]) => [`cf_${k}`, v])),
+  };
 }
 
 // Profile rows for a vehicle's custom values (archived fields still show what they hold).
@@ -6465,13 +6470,16 @@ const VEHICLE_WIZARD_STEP_LABELS = ['Basic Information', 'Specs', 'Photo & Locat
 const VEHICLE_WIZARD_STEP_ICONS = ['clipboard', 'wrench', 'pin'];
 
 function NewVehiclePage({ onBack, lookups, allHubs, onSubmit, onDirty }) {
-  // Each new registration starts empty; keep entries only while this
-  // wizard is open so Next/Back preserves the current vehicle's inputs.
+  const { user } = useContext(AuthContext);
+  // Each new registration starts empty (apart from a Custodian registering
+  // themselves as its custodian); keep entries only while this wizard is
+  // open so Next/Back preserves the current vehicle's inputs.
+  const initialDraft = useMemo(() => (hasRole(user, 'Custodian') ? { custodian_id: String(user.id) } : EMPTY_OBJ), [user]);
   const [step, setStep] = useState(1);
-  const [wizardData, setWizardData] = useState(EMPTY_OBJ);
+  const [wizardData, setWizardData] = useState(initialDraft);
   const clearNewVehicleDraft = () => {
     setStep(1);
-    setWizardData(EMPTY_OBJ);
+    setWizardData(initialDraft);
   };
   // Live-tracks the in-progress Category pick within step 1 (before it's
   // merged into wizardData on "Next") so the Vehicle Type options can
@@ -6563,6 +6571,7 @@ function NewVehiclePage({ onBack, lookups, allHubs, onSubmit, onDirty }) {
           ) : null;
         },
       },
+      custodianField(lookups.custodians, 'Current location'),
     ],
   };
 
@@ -7297,6 +7306,15 @@ function FormPage({ description, onBack, fields, initialValues, onSubmit, submit
   );
 }
 
+// The Custodian responsible for a vehicle; the backend defaults it to a
+// Custodian registering one, so this only has to offer the barangay's list.
+function custodianField(custodians = [], group) {
+  return {
+    label: 'Custodian', name: 'custodian_id', type: 'select', group,
+    options: custodians.map((c) => ({ value: String(c.id), label: c.name })),
+  };
+}
+
 function vehicleFields(lookups, allHubs = [], domain = 'Land', existingPhotoUrl = null, category = null, profile = false) {
   const hubOptions = allHubs.map((hub) => ({ value: hub.name, label: hub.name }));
 
@@ -7335,6 +7353,7 @@ function vehicleFields(lookups, allHubs = [], domain = 'Land', existingPhotoUrl 
         ) : null;
       },
     },
+    custodianField(lookups.custodians, 'Location & service availability'),
     // Production-readiness audit finding #7 — was accepted by the API and
     // shown read-only on the profile, but had no way to actually be edited.
     { label: 'Remarks (optional)', name: 'remarks', type: 'textarea', group: 'Location & service availability' },
@@ -13936,6 +13955,7 @@ function VehicleProfilePage({ vehicleId, lookups, allHubs, basePath, canManage =
                 <div><dt>Active maintenance ticket</dt><dd>{readiness?.active_ticket_id ? <button type="button" className="vehicle-profile-ticket-link" onClick={() => navigate(`${basePath}/tickets/${readiness.active_ticket_id}`)}><Icon name="ticket" size={14} /> {readiness.active_ticket_title ?? `Ticket #${readiness.active_ticket_number ?? readiness.active_ticket_id}`} <Icon name="chevronRight" size={13} /></button> : <span className="muted">{!readinessLoaded ? 'Loading ticket status…' : readinessLoadFailed ? 'Status unavailable' : 'No active ticket'}</span>}</dd></div>
                 <div><dt>Last readiness check</dt><dd>{readiness?.last_checked ? formatDate(readiness.last_checked) : <span className="muted">{!readinessLoaded ? 'Loading check history…' : readinessLoadFailed ? 'History unavailable' : readiness?.state === 'unchecked' ? 'Never checked' : 'No check recorded'}</span>}</dd></div>
                 <div><dt>Current location</dt><dd>{vehicle.current_location ?? <span className="muted">Not set</span>}</dd></div>
+                <div><dt>Custodian</dt><dd>{vehicle.custodian?.name ?? <span className="muted">Not assigned</span>}</dd></div>
                 {vehicle.estimated_return_date && <div><dt>Estimated return</dt><dd>{formatForecastDate(vehicle.estimated_return_date)}</dd></div>}
                 <div><dt>Date added</dt><dd>{vehicle.created_at ? <QuietDate value={vehicle.created_at} /> : '—'}</dd></div>
                 <div><dt>Last updated</dt><dd>{vehicle.updated_at ? <QuietDate value={vehicle.updated_at} /> : '—'}</dd></div>
