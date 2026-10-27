@@ -23,7 +23,7 @@ import WorkspaceFooter from '../components/WorkspaceFooter';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { DonutChart, StackedBarChart } from '../components/charts';
 import { AuthContext } from '../context/AuthContextObject';
-import { geoJsonToPolygons, isPointWithinBoundaryPolygons, isLocationPointAllowed } from '../utils/boundary';
+import { geoJsonToPolygons, isLocationPointAllowed } from '../utils/boundary';
 import { geocodeAddress, reverseGeocode } from '../utils/geocode';
 import { calendarDate } from '../utils/adminDate';
 import { completedMaintenanceRecords, maintenanceSourceBucket, maintenanceSourceLabel } from '../utils/maintenanceGroups';
@@ -6058,7 +6058,6 @@ function LocationAddressMapForm({
           </div>
         </div>
         <div className="add-location-map-shell">
-          {!boundaryVerified && <p className="notice info">Unverified reference outline. Check this location's address and pin before saving.{marker && !isPointWithinBoundaryPolygons(marker, boundaryPolygons) ? ' The pin is outside the imported outline.' : ''}</p>}
           <AddLocationMap marker={marker} boundaryPolygons={boundaryPolygons} boundaryLabel={boundaryLabel} boundaryVerified={boundaryVerified} onPick={handleMapPick} />
         </div>
       </form>
