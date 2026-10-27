@@ -16781,8 +16781,14 @@ html .maintenance-record-source .maintenance-schedule { background: #ede9fe; bor
 .wizard-photo-location-grid .form-group-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .wizard-photo-location-grid .veh-map-wrap { width: 100%; }
 .wizard-photo-location-grid .smart-form > .form-actions { grid-column: 1 / -1; }
+/* .form-group spans every column by default; keep the profile beside the location. */
+.wizard-photo-location-grid .smart-form > .form-group:has(.vehicle-profile-photo) { grid-column: 1; }
+.wizard-photo-location-grid .smart-form > .form-group:not(:has(.vehicle-profile-photo)) { grid-column: 2; }
+.wizard-photo-location-grid .vehicle-profile-photo { height: 180px; }
+.wizard-photo-location-grid .file-cabinet-drop > button { padding: 12px; }
 @media (max-width: 720px) {
   .form-grid-2col.wizard-photo-location-grid .smart-form { grid-template-columns: minmax(0, 1fr); }
+  .wizard-photo-location-grid .smart-form > .form-group:nth-of-type(n) { grid-column: 1 / -1; }
 }
 
 /* Cannibalized / external repair summary inside a sub-issue card. */
