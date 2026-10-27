@@ -140,7 +140,7 @@ function StaffCodeEmail({ account, onSend, onClose }) {
       {code.error ? <p className="notice error" role="alert">{code.error}</p> : <div className="sa-email-preview" aria-label="Email preview">
         <p>Hi {firstName},</p>
         <p>Your appointment as the Administrator for <strong>{place}</strong> has been confirmed. Here is your Staff Registration Code:</p>
-        {code.value ? <CopyableCode code={code.value} /> : <code>Loading…</code>}
+        {code.value ? <div className="sa-code-chip"><code>{code.value}</code></div> : <code>Loading…</code>}
         <p><strong>This code expires on {expires} ({STAFF_CODE_VALID_DAYS} days from today).</strong></p>
         <p><strong>To activate your account:</strong></p>
         <ol><li>Go to the VMS sign-in page and sign in with your email and password.</li><li>When the "Enter your registration code" window appears, paste the code above.</li><li>Click <strong>Activate</strong>. You will then have full access as your barangay's Administrator.</li></ol>
