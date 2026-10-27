@@ -69,7 +69,7 @@ const modulesByRole = {
     // Tickets module itself (a toolbar link there) instead of its own
     // top-level row.
     { section: 'Fleet & Assets', icon: 'vehicle', items: [
-      ['vehicles', 'View Vehicles'],
+      ['vehicles', 'Vehicle Management'],
       ['categories', 'Vehicle Types'],
       ['locations', 'Vehicle Location'],
     ] },
@@ -86,7 +86,6 @@ const modulesByRole = {
     // no separate "Register Vehicle" row for the same page.
     { section: 'Vehicles', icon: 'vehicle', items: [
       ['vehicles', 'View Vehicles'],
-      ['locations', 'Vehicle Location'],
       ['conditions', 'Condition Monitoring'],
     ] },
     // 'reportOrPropose' ('issues' module under the hood) is the Issue
