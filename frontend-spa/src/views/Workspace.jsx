@@ -68,7 +68,7 @@ const modulesByRole = {
     // Tickets module itself (a toolbar link there) instead of its own
     // top-level row.
     { section: 'Fleet & Assets', icon: 'vehicle', items: [
-      ['vehicles', 'Vehicle Management'],
+      ['vehicles', 'View Vehicles'],
       ['categories', 'Vehicle Types'],
       ['locations', 'Vehicle Location'],
     ] },
