@@ -52,6 +52,13 @@ class HubControllerTest extends TestCase
     }
 
     #[Test]
+    public function a_custodian_can_add_a_new_location(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'Custodian', 'roles' => ['Custodian']]), ['*']);
+        $this->postJson('/api/hubs', ['name' => 'Second Depot', 'lat' => 10.31, 'lng' => 123.91])->assertCreated();
+    }
+
+    #[Test]
     public function the_same_barangay_still_cannot_create_two_hubs_with_the_same_name(): void
     {
         $barangay = Barangay::create(['name' => 'Barangay A ' . uniqid()]);

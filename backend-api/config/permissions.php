@@ -47,7 +47,7 @@ return [
     'vehicle.request_inspection' => [],
 
     // Hubs
-    'hub.create' => ['Admin'],
+    'hub.create' => ['Admin', 'Custodian'],
     'hub.edit' => ['Admin'],
     'hub.delete' => ['Admin'],
 
