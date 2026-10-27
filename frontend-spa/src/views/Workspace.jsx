@@ -85,6 +85,7 @@ const modulesByRole = {
     // no separate "Register Vehicle" row for the same page.
     { section: 'Vehicles', icon: 'vehicle', items: [
       ['vehicles', 'View Vehicles'],
+      ['locations', 'Vehicle Location'],
       ['conditions', 'Condition Monitoring'],
     ] },
     // 'reportOrPropose' ('issues' module under the hood) is the Issue
