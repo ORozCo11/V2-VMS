@@ -215,6 +215,7 @@ return [
     // Super Admin platform administration
     'barangay.view_all' => ['Super Admin'],
     'barangay.create' => ['Super Admin'],
+    'barangay.create_admin' => ['Super Admin'],
     'barangay.refresh_boundary' => ['Super Admin'],
     'barangay.view_registration_code' => ['Super Admin'],
     'barangay.regenerate_registration_code' => ['Super Admin'],

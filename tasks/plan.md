@@ -75,7 +75,7 @@ Detail (acceptance criteria, verification, files) in `tasks/todo.md`.
 
 ### Phase 1: Accounts and onboarding
 - [x] T1: Accounts created by someone else must change password on first login
-- [ ] T2: Super Admin (LGU) creates a barangay's Admin account; email has login link
+- [x] T2: Super Admin (LGU) creates a barangay's Admin account; email has login link
 - [ ] T3: Approval means immediate login; approval email has login link
 - [ ] T4: Barangay Admin invites a user by email
 - [ ] T5: Simplified registration (no map)

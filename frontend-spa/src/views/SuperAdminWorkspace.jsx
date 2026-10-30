@@ -101,7 +101,48 @@ function ProfileMenu({ user, open, setOpen, onOpenSettings, onLogout }) {
   );
 }
 
-function BarangayManagementTab({ barangays, users, onPromote, onAddedBarangay, onRetryBoundary, onConfirmBoundary, onDiscardBoundary, onBoundarySaved, initialFilter, showAddForm, onCloseAdd, onRegistrationCode, onRequestConfirmation }) {
+// The LGU creates a barangay's Admin directly; the server emails a temporary
+// password and sign-in link, so nothing secret is shown here.
+function CreateBarangayAdminForm({ barangay, onCreated }) {
+  const empty = { name: '', email: '', phone: '' };
+  const [form, setForm] = useState(empty);
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+  const submit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setErrors({});
+    setMessage('');
+    try {
+      const { data } = await api.post(`/superadmin/barangays/${barangay.id}/admins`, { ...form, phone: form.phone || null });
+      setForm(empty);
+      await onCreated(data.message);
+    } catch (error) {
+      const data = error.response?.data;
+      if (data?.errors) setErrors(Object.fromEntries(Object.entries(data.errors).map(([field, list]) => [field, list[0]])));
+      else setMessage(data?.message ?? `The Admin account for ${barangay.name} was not created because the server could not be reached. Check your connection and try again.`);
+    } finally {
+      setSaving(false);
+    }
+  };
+  const field = (name, label, type, extra = {}) => <>
+    <AdminFilterField label={label}><input name={name} type={type} value={form[name]} onChange={update} {...extra} /></AdminFilterField>
+    {errors[name] && <p className="notice error" role="alert">{errors[name]}</p>}
+  </>;
+  return <form className="sa-detail-section" onSubmit={submit} noValidate>
+    <h3>Create Administrator account</h3>
+    <p>The Admin will get an email with a temporary password and a link to sign in. They must choose their own password the first time they sign in.</p>
+    {field('name', 'Full name', 'text', { required: true, autoComplete: 'name' })}
+    {field('email', 'Email address', 'email', { required: true, autoComplete: 'email' })}
+    {field('phone', 'Phone (optional)', 'tel', { placeholder: '09171234567', inputMode: 'numeric' })}
+    {message && <p className="notice error" role="alert">{message}</p>}
+    <button type="submit" className="primary-button" disabled={saving || !form.name.trim() || !form.email.trim()}>{saving ? 'Creating and emailing…' : 'Create Admin and send email'}</button>
+  </form>;
+}
+
+function BarangayManagementTab({ barangays, users, onPromote, onAdminCreated, onAddedBarangay, onRetryBoundary, onConfirmBoundary, onDiscardBoundary, onBoundarySaved, initialFilter, showAddForm, onCloseAdd, onRegistrationCode, onRequestConfirmation }) {
   const [activeFilter, setActiveFilter] = useState(initialFilter || 'all');
   const [search, setSearch] = useState('');
   const [provinceFilter, setProvinceFilter] = useState('');
@@ -145,6 +186,7 @@ function BarangayManagementTab({ barangays, users, onPromote, onAddedBarangay, o
       <header className="sa-barangay-page-header"><button type="button" className="ghost-button" onClick={() => setManagingId(null)}><Icon name="arrowLeft" size={15} />Back to Barangays</button><h2>{managing.name}</h2><p>{[managing.city_name, managing.province_name].filter(Boolean).join(', ')}</p></header>
       <div className="sa-barangay-page-grid">
       <dl className="sa-detail-list"><dt>Registered staff</dt><dd>{managing.staff_count}</dd><dt>Administrator status</dt><dd><StatusBadge value={managing.has_active_admin ? 'Active Admin' : 'No Active Admin'} /></dd>{waitingAdmins.length > 0 && <><dt>Admin awaiting code</dt><dd className="sa-waiting-admin">{waitingAdmins.map((account) => <span key={account.id}><button type="button" className="sa-text-button" onClick={() => navigate(`/superadmin/users?user=${account.id}`)}>{account.name}</button> <StatusBadge value={!account.approved_at ? 'Pending Approval' : account.staff_code_sent_at ? 'Code Sent' : 'Awaiting Code'} /></span>)}</dd></>}<dt>Boundary status</dt><dd><StatusBadge value={boundaryStatus(managing)} /></dd><dt>Registration code</dt><dd>{managing.has_registration_code ? 'On file' : 'Not generated yet'}</dd></dl>
+      {managing.psgc_code && <CreateBarangayAdminForm key={managing.id} barangay={managing} onCreated={onAdminCreated} />}
       <section className="sa-detail-section"><h3>Registration code</h3><p>View or regenerate this barangay's staff registration code.</p><button type="button" className="ghost-button" onClick={() => onRegistrationCode(managing)}><Icon name="key" size={15} />Manage Registration Code</button></section>
       <section className="sa-detail-section"><h3>Boundary configuration</h3><button type="button" className="ghost-button" onClick={() => { setReviewingBoundary(managing); }}>Review / Replace Boundary</button>{managing.boundary_status === 'needs_review' ? <><p>{managing.pending_boundary ? 'A candidate outline is waiting for review.' : 'The current outline is an unverified reference.'} Review it against an LGU-approved boundary map or survey.</p><button type="button" className="primary-button" onClick={() => { setReviewingBoundary(managing); }}>Review Boundary</button></> : managing.boundary_status === 'verified' ? <p>A boundary reviewed against an uploaded source document is on file. This is an administrator review, not a legal certification.</p> : <><p>No matching boundary is on file. Retry the supported lookup.</p><button type="button" className="ghost-button" disabled={retryingId === managing.id} onClick={() => retryBoundary(managing)}>{retryingId === managing.id ? 'Checking…' : 'Retry Boundary Lookup'}</button></>}</section>
       {!managing.has_active_admin && <section className="sa-detail-section"><h3>Recover Administrator</h3>{!candidates.length ? <p>No registered staff are available to promote. Share this barangay's registration code to begin onboarding.</p> : <><p>Promote an existing staff member to Admin while keeping their current roles and assigned responsibilities. An inactive account will also be approved and activated.</p><AdminFilterField label="Staff member"><SearchableSelect value={pickedUserId} onChange={(event) => setPickedUserId(event.target.value)}><option value="">Select a staff member</option>{candidates.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.role}{account.is_active ? '' : ' (inactive)'}</option>)}</SearchableSelect></AdminFilterField><button type="button" className="primary-button" disabled={!pickedUserId} onClick={() => { const target = candidates.find((account) => String(account.id) === pickedUserId); onRequestConfirmation({ title: 'Recover Administrator', message: `Promote ${target.name} to Admin for ${managing.name}${target.is_active ? '' : ' and activate their account'}?`, confirmLabel: 'Promote to Admin', variant: 'primary', onConfirm: async () => { const success = await onPromote(target); if (success) setManagingId(null); } }); }}>Promote to Admin</button></>}</section>}
@@ -456,6 +498,12 @@ export default function SuperAdminWorkspace() {
     }
   };
 
+  // CreateBarangayAdminForm POSTs itself; this surfaces the server's message and refreshes.
+  const adminCreated = async (message) => {
+    setNotice({ type: 'success', text: message });
+    await loadAll();
+  };
+
   // AddBarangayForm already POSTs and hands back the created row itself —
   // this just refreshes the shared datasets (same loadAll() convention
   // every other mutation here uses) and surfaces the success notice.
@@ -680,6 +728,7 @@ export default function SuperAdminWorkspace() {
                 barangays={barangays}
                 users={visibleUsers}
                 onPromote={promoteToAdmin}
+                onAdminCreated={adminCreated}
                 onAddedBarangay={addBarangay}
                 onRetryBoundary={retryBoundary}
                 onConfirmBoundary={confirmBoundary}

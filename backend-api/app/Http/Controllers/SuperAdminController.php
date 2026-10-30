@@ -271,6 +271,56 @@ class SuperAdminController extends Controller
     }
 
     /**
+     * The LGU (Super Admin) creates a barangay's Admin directly. The account
+     * is active at once on a temporary password, emailed with a sign-in link;
+     * the Admin must replace it on first sign-in. If the email can't be sent
+     * the account is rolled back, so no one is left holding a password they
+     * never received.
+     */
+    public function storeBarangayAdmin(Request $request, Barangay $barangay)
+    {
+        $this->requireAbility($request, 'barangay.create_admin', 'Only a Super Admin can perform this action.');
+        abort_unless($barangay->psgc_code, 422, 'Admins can only be created for an official PSGC barangay.');
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'regex:/^09[0-9]{9}$/'],
+        ], [
+            'email.unique' => 'An account with this email address already exists.',
+            'phone.regex' => 'Phone number must be 11 digits starting with 09 (e.g. 09171234567).',
+        ]);
+
+        $admin = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $barangay) {
+            $admin = User::create($data + [
+                'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(40)),
+                'role' => 'Admin',
+                'roles' => ['Admin'],
+                'barangay_id' => $barangay->id,
+                'city_id' => $barangay->city_id,
+                'barangay_name' => $barangay->name,
+                'is_active' => true,
+                'approved_at' => now(),
+            ]);
+            $temporaryPassword = $admin->issueTemporaryPassword();
+
+            $this->sendMail($admin, new AccountMail($admin, "Your VMS Administrator account for Barangay {$barangay->name}", 'admin-created', [
+                'temporaryPassword' => $temporaryPassword,
+            ]));
+            $this->markProvisioned($barangay);
+
+            return $admin;
+        });
+
+        $this->log($request, 'Add', "Created Admin account for {$admin->name} ({$admin->email}) in Barangay {$barangay->name}.");
+
+        return response()->json([
+            'message' => "Admin account created. Sign-in details were emailed to {$admin->email}.",
+            'user' => $admin->only(['id', 'name', 'email', 'phone', 'role', 'barangay_id', 'is_active']),
+        ], 201);
+    }
+
+    /**
      * Re-checks the code-matched PSA/NAMRIA reference bundle. No geocoder,
      * name matching, generated geometry, or fallback barangay is permitted.
      */

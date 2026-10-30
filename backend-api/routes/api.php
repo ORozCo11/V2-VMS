@@ -166,6 +166,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class, EnsurePasswordChan
     Route::get('/superadmin/barangays/search', [SuperAdminController::class, 'searchBarangays']);
     Route::get('/superadmin/barangays/locations', [SuperAdminController::class, 'barangayLocations']);
     Route::post('/superadmin/barangays', [SuperAdminController::class, 'storeBarangay']);
+    Route::post('/superadmin/barangays/{barangay}/admins', [SuperAdminController::class, 'storeBarangayAdmin'])->middleware('throttle:10,1');
     Route::get('/superadmin/users', [SuperAdminController::class, 'users']);
     Route::get('/superadmin/pending-approvals', [SuperAdminController::class, 'pendingApprovals']);
     Route::put('/superadmin/users/{user}/activate', [SuperAdminController::class, 'activateUser']);

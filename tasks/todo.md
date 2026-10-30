@@ -26,13 +26,15 @@ Abbreviations: WS = `frontend-spa/src/views/Workspace.jsx`, FC = `backend-api/ap
 
 **Dependencies:** None · **Files:** new migration, `app/Http/Middleware/EnsurePasswordChanged.php`, `routes/api.php`, `AuthController.php`, `ProtectedRoute.jsx`, new `ForceChangePassword.jsx`, test · **Scope:** M
 
-### T2: Super Admin (LGU) creates a barangay's Admin account
+### T2: Super Admin (LGU) creates a barangay's Admin account ✅
 **Description:** New `POST /superadmin/barangays/{id}/admins` (name, email, phone). Creates an active `Admin` with a temp password (T1) and emails them the password once with a "Sign in to VMS" link (`config('app.frontend_url')/login`). "Add Admin" button on Barangay Management detail. Add `FRONTEND_URL` to `.env.example`.
 
 **Acceptance criteria:**
-- [ ] Created user is Admin of that barangay, active, flagged; DB holds only the hash
-- [ ] Email contains the temp password and a working login link; activity log doesn't contain the password
-- [ ] Non-Super-Admin gets 403; duplicate email rejected with a specific message
+- [x] Created user is Admin of that barangay, active, flagged; DB holds only the hash
+- [x] Email contains the temp password and a working login link; activity log doesn't contain the password
+- [x] Non-Super-Admin gets 403; duplicate email rejected with a specific message
+
+**Done notes:** ability `barangay.create_admin`. Creation and email run in one transaction, so a failed email leaves no account (502 with a specific message). The temp password is only in the email, never in the API response or UI. Creating an Admin also marks the barangay provisioned. UI: "Create Administrator account" section on the barangay detail page.
 
 **Verification:** `php artisan test --filter=SuperAdminCreatesBarangayAdminTest` (uses `Mail::fake`); `npm run build`; manual: create an Admin, open the email in the log mailer, follow the link.
 
