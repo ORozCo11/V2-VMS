@@ -29,6 +29,7 @@ import { calendarDate } from '../utils/adminDate';
 import { completedMaintenanceRecords, maintenanceSourceBucket, maintenanceSourceLabel } from '../utils/maintenanceGroups';
 import { currentCondition } from '../utils/conditionMonitoring';
 import { didRepairWorkOn } from '../utils/ticketVerification';
+import InviteUserDialog from '../components/InviteUserDialog';
 
 const FormNoticeContext = createContext(null);
 // Lets shared table cells (VehicleCell, UserAvatarName) open the right detail
@@ -821,6 +822,7 @@ function Workspace() {
   const [loading, setLoading] = useState(false);
   const [userInfoTarget, setUserInfoTarget] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
   // Tracks whether the form on whatever special page is currently open has
   // been touched — set true the moment a field changes, cleared on submit,
@@ -1419,6 +1421,38 @@ function Workspace() {
     });
   };
 
+  const manageInvite = (row, action) => {
+    setConfirmDialog(action === 'resend' ? {
+      title: 'Resend Invite',
+      message: `Send ${row.name} a new invite email? The link in any earlier invite will stop working.`,
+      confirmLabel: 'Resend Invite',
+      variant: 'primary',
+      onConfirm: async () => {
+        try {
+          const { data } = await api.post(`/users/${row.id}/invite/resend`);
+          setNotice({ type: 'success', text: data.message });
+          await refreshCurrent();
+        } catch (error) {
+          showError(error, setNotice);
+        }
+      },
+    } : {
+      title: 'Cancel Invite',
+      message: `Cancel the invite for ${row.name} (${row.email})? Their invite link will stop working and the account will be removed.`,
+      confirmLabel: 'Cancel Invite',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const { data } = await api.delete(`/users/${row.id}/invite`);
+          setNotice({ type: 'success', text: data.message });
+          await refreshCurrent();
+        } catch (error) {
+          showError(error, setNotice);
+        }
+      },
+    });
+  };
+
   const toggleUserActive = (row, activate) => {
     // First-time approval (never approved before) — review the requested
     // role instead of blindly activating. Re-activating an already-once-
@@ -1915,7 +1949,7 @@ function Workspace() {
     }
 
     if (activeModule === 'users' && filterActive.length) {
-      result = result.filter((row) => filterActive.includes(row.is_active ? 'Active' : 'Inactive'));
+      result = result.filter((row) => filterActive.includes(userStatus(row)));
     }
 
     if (activeModule === 'ticketVerifications' && filterVerdict.length) {
@@ -2175,7 +2209,7 @@ function Workspace() {
     [records.users]
   );
   const userStatusStats = useMemo(
-    () => countByValues(records.users ?? [], (r) => (r.is_active ? 'Active' : 'Inactive'), ['Active', 'Inactive']),
+    () => countByValues(records.users ?? [], userStatus, ['Active', 'Inactive', 'Invited']),
     [records.users]
   );
 
@@ -2312,7 +2346,7 @@ function Workspace() {
   const categoryColumnDefs = (() => categoryColumns((row) => navigate(`${roleRoutes[user.role]}/categories/${row.category_id}/edit`), deleteRecord))();
   const categoryColumnChooser = useColumnChooser('vms_category_columns', categoryColumnDefs);
 
-  const userColumnDefs = (() => userColumns((row) => navigate(`${roleRoutes[user.role]}/users/${row.id}/edit`), toggleUserActive, user.id))();
+  const userColumnDefs = (() => userColumns((row) => navigate(`${roleRoutes[user.role]}/users/${row.id}/edit`), toggleUserActive, user.id, manageInvite))();
   const userColumnChooser = useColumnChooser('vms_user_columns', userColumnDefs);
 
   const locationColumnChooser = useColumnChooser('vms_location_columns', locationTableColumns);
@@ -2924,6 +2958,12 @@ function Workspace() {
         <WorkspaceFooter />
       </section>
     </main>
+    {inviteOpen && (
+      <InviteUserDialog
+        onClose={() => setInviteOpen(false)}
+        onInvited={async (message) => { setInviteOpen(false); setNotice({ type: 'success', text: message }); await refreshCurrent(); }}
+      />
+    )}
     <ConfirmDialog
       busy={confirmBusy}
       dialog={confirmDialog}
@@ -3307,6 +3347,7 @@ function Workspace() {
       const userStatusSegments = [
         { label: 'Active', value: userStatusStats.Active, color: '#2563eb' },
         { label: 'Inactive', value: userStatusStats.Inactive, color: '#cbd5e1' },
+        { label: 'Invited', value: userStatusStats.Invited, color: '#f59e0b' },
       ];
       return (
         <ModulePanel
@@ -3345,7 +3386,7 @@ function Workspace() {
                 <span>Status</span>
                 <MultiSelectDropdown
                   placeholder="All Statuses"
-                  options={['Active', 'Inactive']}
+                  options={['Active', 'Inactive', 'Invited']}
                   selected={filterActive}
                   onChange={setFilterActive}
                 />
@@ -3371,6 +3412,9 @@ function Workspace() {
           )}
           <div className="panel-header-bar">
             <h3>Users <span className="count-badge">{visibleRows.length}</span></h3>
+            {hasRole(user, 'Admin') && (
+              <button className="primary-button" type="button" onClick={() => setInviteOpen(true)}><Icon name="mail" size={15} /> Invite User</button>
+            )}
             <LocalSearchInput
               value={searchQuery}
               onChange={setSearchQuery}
@@ -8190,7 +8234,12 @@ function categoryColumns(onEdit, deleteRecord) {
   ];
 }
 
-function userColumns(onEdit, onToggleActive, currentUserId) {
+// Invited = created by an Admin's invite but the link hasn't been used yet.
+function userStatus(row) {
+  return row.invite_pending ? 'Invited' : row.is_active ? 'Active' : 'Inactive';
+}
+
+function userColumns(onEdit, onToggleActive, currentUserId, onInvite) {
   return [
     { key: 'id', label: 'ID', locked: true, className: 'cell-center', render: (row) => recordNumber(row, 'id') },
     { key: 'user', label: 'User', locked: true, render: (row) => <UserAvatarName user={row} /> },
@@ -8204,7 +8253,7 @@ function userColumns(onEdit, onToggleActive, currentUserId) {
         </span>
       );
     } },
-    { key: 'status', label: 'Status', className: 'cell-center', render: (row) => <StatusBadge value={row.is_active ? 'Active' : 'Inactive'} /> },
+    { key: 'status', label: 'Status', className: 'cell-center', render: (row) => <StatusBadge value={userStatus(row)} /> },
     {
       key: 'action',
       label: 'Action',
@@ -8213,7 +8262,12 @@ function userColumns(onEdit, onToggleActive, currentUserId) {
       render: (row) => (
         <div className="row-actions">
           <button className="btn-edit-action icon-btn" onClick={() => onEdit(row)} type="button" title="Edit" aria-label="Edit"><Icon name="edit" size={14} /></button>
-          {row.id !== currentUserId && (
+          {row.invite_pending ? (
+            <>
+              <button className="btn-edit-action icon-btn" onClick={() => onInvite(row, 'resend')} type="button" title="Resend invite" aria-label="Resend invite"><Icon name="mail" size={14} /></button>
+              <button className="btn-archive-action icon-btn" onClick={() => onInvite(row, 'cancel')} type="button" title="Cancel invite" aria-label="Cancel invite"><Icon name="close" size={14} /></button>
+            </>
+          ) : row.id !== currentUserId && (
             row.is_active ? (
               <button className="btn-archive-action icon-btn" onClick={() => onToggleActive(row, false)} type="button" title="Deactivate (reversible)" aria-label="Deactivate"><Icon name="archive" size={14} /></button>
             ) : (
@@ -8245,7 +8299,7 @@ function UserCard({ user: person, onClick }) {
         <span>{person.phone || 'No phone on file'}</span>
         <a href={`mailto:${person.email}`} onClick={(e) => e.stopPropagation()}>{person.email}</a>
       </div>
-      <StatusBadge value={person.is_active ? 'Active' : 'Inactive'} />
+      <StatusBadge value={userStatus(person)} />
     </div>
   );
 }

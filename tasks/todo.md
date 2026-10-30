@@ -54,13 +54,15 @@ Abbreviations: WS = `frontend-spa/src/views/Workspace.jsx`, FC = `backend-api/ap
 
 **Dependencies:** None · **Files:** `SuperAdminController.php`, `UserController.php`, `AccountMail.php`, new `emails/approved.blade.php`, `Login.jsx`, tests · **Scope:** M
 
-### T4: Barangay Admin invites a user by email
+### T4: Barangay Admin invites a user by email ✅
 **Description:** "Invite User" on the Users page (name, email, role(s)). Creates an inactive account with a one-time token (expires in 7 days) and emails a link to a "Set your password" page. Submitting the password activates the account and logs them in. Admin can resend or cancel a pending invite.
 
 **Acceptance criteria:**
-- [ ] Invite email link opens the set-password page; after setting it, the user is active in the Admin's barangay with the invited role
-- [ ] Expired or used token shows a specific message ("This invite has expired — ask your barangay Admin to resend it")
-- [ ] Users list shows invite status (Invited / Active) with Resend and Cancel
+- [x] Invite email link opens the set-password page; after setting it, the user is active in the Admin's barangay with the invited role
+- [x] Expired or used token shows a specific message
+- [x] Users list shows invite status (Invited / Active) with Resend and Cancel
+
+**Done notes:** columns `users.invite_token` (SHA-256 hash, hidden) and `invite_expires_at`; `User::issueInvite()`, appended `invite_pending`. Routes: `POST /users/invite`, `POST /users/{user}/invite/resend`, `DELETE /users/{user}/invite`, public `POST /invites/accept`; ability `user.invite`. Invite + email in one transaction (502 and no account if the email fails). Signing in before accepting gives a specific message. UI: Invite User dialog (`components/InviteUserDialog.jsx`), "Invited" status/filter/chart, Resend/Cancel row actions, `/accept-invite` page. "Add User" with a typed password still exists alongside.
 
 **Verification:** `php artisan test --filter=UserInviteTest`; `npm run build`; manual: invite, accept, log in.
 

@@ -6,6 +6,7 @@ import ManagedFileLinks from './components/ManagedFileLinks';
 import { AuthContext } from './context/AuthContextObject';
 import Login from './views/Login';
 const Register = lazy(() => import('./views/Register'));
+const AcceptInvite = lazy(() => import('./views/AcceptInvite'));
 const Privacy = lazy(() => import('./views/Privacy'));
 const Terms = lazy(() => import('./views/Terms'));
 const About = lazy(() => import('./views/About'));
@@ -46,6 +47,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/about" element={<About />} />

@@ -37,6 +37,8 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 // A first Administrator's sign-in plus the staff code a Super Admin emailed them.
 Route::post('/activate-account', [AuthController::class, 'activateWithStaffCode'])->middleware('throttle:10,1');
+// An invited staff member sets their password from the emailed link.
+Route::post('/invites/accept', [AuthController::class, 'acceptInvite'])->middleware('throttle:10,1');
 // Read-only lookup used interactively while filling the registration form —
 // no credentials involved, but still throttled so it can't be used to
 // cheaply enumerate which barangays already have an Admin.
@@ -148,6 +150,9 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class, EnsurePasswordChan
 
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
+    Route::post('/users/invite', [UserController::class, 'invite'])->middleware('throttle:20,1');
+    Route::post('/users/{user}/invite/resend', [UserController::class, 'resendInvite'])->middleware('throttle:10,1');
+    Route::delete('/users/{user}/invite', [UserController::class, 'cancelInvite']);
     Route::put('/users/{user}', [UserController::class, 'update']);
     Route::put('/users/{user}/deactivate', [UserController::class, 'deactivate']);
     Route::put('/users/{user}/activate', [UserController::class, 'activate']);

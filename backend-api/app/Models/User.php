@@ -43,10 +43,17 @@ class User extends Authenticatable
     // How long an emailed staff code stays usable before the registration expires.
     public const STAFF_CODE_VALID_DAYS = 7;
 
+    // How long an invite link stays usable before the Admin has to resend it.
+    public const INVITE_VALID_DAYS = 7;
+
+    // Lets the Users list show "Invited" without exposing the token.
+    protected $appends = ['invite_pending'];
+
     /**
      * The attributes that should be hidden for serialization.
      */
     protected $hidden = [
+        'invite_token',
         'password',
         'remember_token',
     ];
@@ -59,7 +66,30 @@ class User extends Authenticatable
         'awaiting_staff_code' => 'boolean',
         'staff_code_sent_at' => 'datetime',
         'must_change_password' => 'boolean',
+        'invite_expires_at' => 'datetime',
     ];
+
+    public function getInvitePendingAttribute(): bool
+    {
+        return !$this->is_active && $this->invite_expires_at !== null;
+    }
+
+    /**
+     * Start (or restart) an email invite. Returns the plaintext token for the
+     * link once; only its SHA-256 hash is stored, and issuing a new one makes
+     * any earlier link stop working.
+     */
+    public function issueInvite(): string
+    {
+        $token = \Illuminate\Support\Str::random(48);
+
+        $this->forceFill([
+            'invite_token' => hash('sha256', $token),
+            'invite_expires_at' => now()->addDays(self::INVITE_VALID_DAYS),
+        ])->save();
+
+        return $token;
+    }
 
     /**
      * Give the account a random temporary password the owner must replace on

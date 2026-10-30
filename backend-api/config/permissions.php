@@ -203,6 +203,7 @@ return [
     // Users (barangay-scoped, managed by that barangay's Admin)
     'user.view' => ['Admin'],
     'user.create' => ['Admin'],
+    'user.invite' => ['Admin'],
     'user.edit' => ['Admin'],
     'user.deactivate' => ['Admin'],
     'user.activate' => ['Admin'],

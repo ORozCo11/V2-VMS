@@ -11,7 +11,10 @@ use App\Models\ActivityLog;
 use App\Models\RegistrationSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -132,6 +135,90 @@ class UserController extends Controller
         $this->log($request, 'Add', $user->id, "Created user \"{$user->name}\" ({$user->email}), role: " . implode('/', $user->roles ?? [$user->role]));
 
         return response()->json($user, 201);
+    }
+
+    /**
+     * Invite a staff member by email. The account is created inactive (but
+     * already approved by this Admin) and becomes active when the invitee
+     * sets a password from the link. If the email can't be sent the account
+     * is rolled back, so no one holds an invite they never received.
+     */
+    public function invite(Request $request)
+    {
+        $this->requireAbility($request, 'user.invite', 'Only Admins can invite users.');
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'role' => ['required_without:roles', Rule::in(self::ROLES)],
+            'roles' => ['required_without:role', 'array', 'min:1'],
+            'roles.*' => [Rule::in(self::ROLES)],
+            'phone' => ['nullable', 'string', 'regex:/^09[0-9]{9}$/'],
+        ], [
+            'email.unique' => 'An account with this email address already exists.',
+            'phone.regex' => 'Phone number must be 11 digits starting with 09 (e.g. 09171234567).',
+        ]);
+        $data = $this->normalizeRoles($request, $data);
+        $admin = $request->user();
+
+        $user = DB::transaction(function () use ($data, $admin) {
+            $user = User::create($data + [
+                'password' => Hash::make(Str::random(40)),
+                'barangay_id' => $admin->barangay_id,
+                'city_id' => $admin->city_id,
+                'barangay_name' => $admin->barangay?->name ?? $admin->barangay_name,
+                'is_active' => false,
+                'approved_at' => now(),
+            ]);
+            $this->sendInvite($user);
+
+            return $user;
+        });
+
+        $this->log($request, 'Add', $user->id, "Invited \"{$user->name}\" ({$user->email}), role: " . implode('/', $user->roles ?? [$user->role]));
+
+        return response()->json(['message' => "Invite sent to {$user->email}.", 'user' => $user->fresh()], 201);
+    }
+
+    public function resendInvite(Request $request, User $user)
+    {
+        $this->requireAbility($request, 'user.invite', 'Only Admins can invite users.');
+        $this->requireSameBarangay($request, $user);
+        abort_unless($user->invite_pending, 422, 'This account has no pending invite. Deactivate it instead.');
+
+        DB::transaction(fn () => $this->sendInvite($user));
+        $this->log($request, 'Edit', $user->id, "Resent the invite to \"{$user->name}\" ({$user->email}).");
+
+        return response()->json(['message' => "A new invite was sent to {$user->email}. Earlier invite links no longer work."]);
+    }
+
+    public function cancelInvite(Request $request, User $user)
+    {
+        $this->requireAbility($request, 'user.invite', 'Only Admins can invite users.');
+        $this->requireSameBarangay($request, $user);
+        abort_unless($user->invite_pending, 422, 'This account has no pending invite. Deactivate it instead.');
+
+        $user->delete();
+        $this->log($request, 'Delete', $user->id, "Cancelled the invite for \"{$user->name}\" ({$user->email}).");
+
+        return response()->json(['message' => "The invite for {$user->email} was cancelled."]);
+    }
+
+    private function sendInvite(User $user): void
+    {
+        $token = $user->issueInvite();
+        $url = rtrim(config('app.frontend_url'), '/').'/accept-invite?'.http_build_query(['email' => $user->email, 'token' => $token]);
+
+        try {
+            Mail::to($user->email)->send(new AccountMail($user, "You're invited to VMS for Barangay {$user->barangay_name}", 'invite', [
+                'token' => $token,
+                'inviteUrl' => $url,
+                'expiresAt' => $user->invite_expires_at,
+            ]));
+        } catch (\Throwable $e) {
+            report($e);
+            abort(502, 'The invite email could not be sent, so no invite was saved. Check the mail settings and try again.');
+        }
     }
 
     public function update(Request $request, User $user)

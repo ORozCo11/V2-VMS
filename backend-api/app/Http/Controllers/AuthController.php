@@ -222,6 +222,10 @@ class AuthController extends Controller
             ], 401); // Returns 401 Unauthorized status code
         }
 
+        if ($user->invite_pending) {
+            return response()->json(['message' => "You haven't accepted your invite yet. Open the link in your invite email to set your password."], 403);
+        }
+
         if (!$user->is_active) {
             // approved_at is only ever set the moment an Admin (or, for a
             // barangay's first-ever Admin, a Super Admin) first approves an
@@ -295,6 +299,50 @@ class AuthController extends Controller
             'details' => "{$user->name} activated their account with the emailed staff registration code.",
         ]);
         AccountMail::trySend($user, 'Your VMS account is now active', 'activated');
+
+        return $this->signedIn($user);
+    }
+
+    /**
+     * An invited staff member sets their own password from the emailed link,
+     * which activates the account and signs them in. The link works once.
+     */
+    public function acceptInvite(Request $request)
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+            'token' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $invalid = 'This invite link is not valid. Open the most recent invite email, or ask your barangay Admin to send a new one.';
+        $user = User::where('email', $data['email'])->first();
+        abort_unless($user, 422, $invalid);
+        if ($user->invite_token === null) {
+            abort_if($user->is_active, 410, 'This invite has already been used. Sign in with your email and password.');
+            abort(422, $invalid);
+        }
+        abort_unless(hash_equals($user->invite_token, hash('sha256', $data['token'])), 422, $invalid);
+        abort_if($user->invite_expires_at->isPast(), 410, 'This invite has expired. Ask your barangay Admin to send a new one.');
+
+        $user->forceFill([
+            'password' => Hash::make($data['password']),
+            'is_active' => true,
+            'must_change_password' => false,
+            'invite_token' => null,
+            'invite_expires_at' => null,
+        ])->save();
+
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'role' => $user->role,
+            'action' => 'Activate',
+            'module' => 'Users',
+            'affected_record_id' => (string) $user->id,
+            'details' => "{$user->name} accepted their invite and set a password.",
+            // No one is signed in yet, so BelongsToBarangay can't stamp it.
+            'barangay_id' => $user->barangay_id,
+        ]);
 
         return $this->signedIn($user);
     }
