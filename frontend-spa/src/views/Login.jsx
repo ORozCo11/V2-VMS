@@ -152,6 +152,10 @@ function Login() {
         </form>
 
         <p className="auth-legal">
+          No account yet? Your LGU or barangay Admin creates it and emails you a sign-in link.
+        </p>
+
+        <p className="auth-legal">
           <Link to="/privacy">Privacy</Link>
           {' · '}
           <Link to="/terms">Terms</Link>

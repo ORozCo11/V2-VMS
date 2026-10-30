@@ -25,30 +25,6 @@ class AuthControllerTest extends TestCase
     }
 
     #[Test]
-    public function a_failed_registration_for_a_brand_new_barangay_leaves_no_orphaned_barangay_row(): void
-    {
-        $before = Barangay::count();
-
-        $this->postJson('/api/register', [
-            'name' => 'Test Person',
-            'email' => 'test-person@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'phone' => '09171234567',
-            'address' => '123 Test St',
-            'city_id' => $this->city->id,
-            'barangay_name' => 'Brand New Barangay',
-            // No staff_code — this barangay has never been seeded/configured
-            // with one, so this registration must fail...
-        ])->assertUnprocessable();
-
-        // ...and must not leave a Barangay row behind for a registration
-        // that never actually completed.
-        $this->assertSame($before, Barangay::count());
-        $this->assertFalse(Barangay::where('name', 'Brand New Barangay')->exists());
-    }
-
-    #[Test]
     public function a_pending_never_approved_account_gets_a_distinct_login_message(): void
     {
         $user = User::factory()->create([
@@ -84,40 +60,6 @@ class AuthControllerTest extends TestCase
         ])->assertForbidden();
 
         $response->assertJsonFragment(['message' => 'This account has been deactivated. Contact an administrator.']);
-    }
-
-    #[Test]
-    public function registering_the_first_admin_for_a_barangay_starts_inactive_and_notifies_every_super_admin(): void
-    {
-        $barangay = Barangay::create(['name' => 'Fresh Barangay', 'city_id' => $this->city->id, 'psgc_code' => '0102801001']);
-        $setting = RegistrationSetting::for($barangay->id);
-        $superAdmin = User::factory()->create(['role' => 'Super Admin', 'roles' => ['Super Admin']]);
-
-        $this->postJson('/api/register', [
-            'name' => 'First Admin',
-            'email' => 'first-admin@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'phone' => '09171234567',
-            'address' => '123 Test St',
-            'city_id' => $this->city->id,
-            'barangay_id' => $barangay->id,
-            'staff_code' => $setting->staff_code,
-        ])->assertCreated();
-
-        // Was: is_active/approved_at set as though this account were already
-        // reviewed. Now every registrant, first-for-barangay or not, starts
-        // exactly the same way — unreviewed — closing the race where anyone
-        // holding the shared staff code could win an uncontested Admin seat.
-        $user = User::where('email', 'first-admin@example.com')->firstOrFail();
-        $this->assertSame('Admin', $user->role);
-        $this->assertFalse($user->is_active);
-        $this->assertNull($user->approved_at);
-
-        $this->assertDatabaseHas('notifications', [
-            'user_id' => $superAdmin->id,
-            'type' => 'pending_admin_approval',
-        ]);
     }
 
     #[Test]

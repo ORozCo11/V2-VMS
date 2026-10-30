@@ -866,13 +866,6 @@ function Workspace() {
   // request, not yet real, so Admin reviews/confirms it here instead of
   // the plain yes/no ConfirmDialog every other activate/deactivate uses.
   const [approvalTarget, setApprovalTarget] = useState(null);
-  // The Staff Registration Code the barangay office hands to real staff —
-  // Admin-only, fetched once so it's ready whenever they open Users.
-  const [registrationCode, setRegistrationCode] = useState(null);
-  useEffect(() => {
-    if (!hasRole(user, 'Admin')) return;
-    api.get('/registration-settings').then((res) => setRegistrationCode(res.data.staff_code)).catch(() => {});
-  }, [user]);
   const [notifications, setNotifications] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState([]);
@@ -1473,24 +1466,6 @@ function Workspace() {
           await api.put(`/users/${row.id}/${activate ? 'activate' : 'deactivate'}`);
           setNotice({ type: 'success', text: activate ? 'User activated.' : 'User deactivated.' });
           await refreshCurrent();
-        } catch (error) {
-          showError(error, setNotice);
-        }
-      },
-    });
-  };
-
-  const regenerateRegistrationCode = () => {
-    setConfirmDialog({
-      title: 'Regenerate Staff Registration Code',
-      message: 'This immediately invalidates the current code — anyone who still has the old one won\'t be able to register until you share the new one.',
-      confirmLabel: 'Regenerate',
-      variant: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await api.post('/registration-settings/regenerate');
-          setRegistrationCode(res.data.staff_code);
-          setNotice({ type: 'success', text: 'Staff registration code regenerated.' });
         } catch (error) {
           showError(error, setNotice);
         }
@@ -3394,22 +3369,6 @@ function Workspace() {
             </div>
           }
         >
-          {hasRole(user, 'Admin') && (
-            <div className="registration-code-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', marginBottom: 14, border: '1px solid var(--border-subtle, #e2e8f0)', borderRadius: 8 }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.8rem' }}>Staff Registration Code</strong>
-                <span className="muted" style={{ fontSize: '0.78rem' }}>
-                  Share this with real staff — they need it to register. Regenerating it locks out anyone who only has the old one.
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                <code style={{ fontSize: '0.95rem', fontWeight: 700, padding: '6px 12px', background: 'var(--surface-2, #f8fafc)', borderRadius: 6 }}>
-                  {registrationCode ?? '…'}
-                </code>
-                <button className="ghost-button" type="button" onClick={regenerateRegistrationCode}>Regenerate</button>
-              </div>
-            </div>
-          )}
           <div className="panel-header-bar">
             <h3>Users <span className="count-badge">{visibleRows.length}</span></h3>
             {hasRole(user, 'Admin') && (

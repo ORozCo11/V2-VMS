@@ -78,7 +78,7 @@ Detail (acceptance criteria, verification, files) in `tasks/todo.md`.
 - [x] T2: Super Admin (LGU) creates a barangay's Admin account; email has login link
 - [x] T3: Approval means immediate login; approval email has login link
 - [x] T4: Barangay Admin invites a user by email
-- [ ] T5: Simplified registration (no map)
+- [x] T5: Remove public self-registration (decided: remove, 2026-10-30)
 - [ ] T6: Barangay Admin batch-uploads users
 
 ### Checkpoint A: Onboarding

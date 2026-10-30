@@ -27,20 +27,15 @@ class StaffCodeActivationTest extends TestCase
         $this->superAdmin = User::factory()->create(['role' => 'Super Admin', 'roles' => ['Super Admin'], 'barangay_id' => null]);
     }
 
+    // Public registration is gone; this is the waiting state those first
+    // Admins were left in, which the remaining staff-code paths still handle.
     private function registerFirstAdmin(): User
     {
-        $this->postJson('/api/register', [
-            'name' => 'Juan Dela Cruz',
-            'email' => 'juan@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'phone' => '09171234567',
-            'address' => '123 Test St',
-            'city_id' => $this->city->id,
-            'barangay_id' => $this->barangay->id,
-        ])->assertCreated();
-
-        return User::where('email', 'juan@example.com')->firstOrFail();
+        return User::factory()->create([
+            'name' => 'Juan Dela Cruz', 'email' => 'juan@example.com', 'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+            'role' => 'Admin', 'roles' => ['Admin'], 'barangay_id' => $this->barangay->id, 'city_id' => $this->city->id,
+            'barangay_name' => $this->barangay->name, 'is_active' => false, 'approved_at' => null, 'awaiting_staff_code' => true,
+        ]);
     }
 
     private function activate(string $code)
@@ -51,27 +46,6 @@ class StaffCodeActivationTest extends TestCase
     private function code(): string
     {
         return RegistrationSetting::for($this->barangay->id)->staff_code;
-    }
-
-    public function test_a_first_admin_registers_without_a_code_and_gets_the_welcome_email(): void
-    {
-        $user = $this->registerFirstAdmin();
-
-        $this->assertSame('Admin', $user->role);
-        $this->assertFalse($user->is_active);
-        $this->assertTrue($user->awaiting_staff_code);
-        Mail::assertSent(AccountMail::class, fn ($mail) => $mail->hasTo('juan@example.com') && $mail->template === 'welcome');
-    }
-
-    public function test_later_staff_still_need_the_barangay_code(): void
-    {
-        $this->registerFirstAdmin();
-
-        $this->postJson('/api/register', [
-            'name' => 'Second Person', 'email' => 'second@example.com', 'password' => 'password123', 'password_confirmation' => 'password123',
-            'phone' => '09171234568', 'address' => '1 St', 'city_id' => $this->city->id, 'barangay_id' => $this->barangay->id,
-            'requested_role' => 'Custodian',
-        ])->assertUnprocessable()->assertJsonValidationErrors('staff_code');
     }
 
     public function test_the_code_cannot_be_used_before_it_is_sent(): void
@@ -175,7 +149,7 @@ class StaffCodeActivationTest extends TestCase
         $user = $this->registerFirstAdmin();
         $data = ['code' => 'ABCD1234', 'expiresAt' => now()->addWeek(), 'body' => "<b>hi</b>\nthere"];
 
-        foreach (['welcome', 'staff-code', 'activated', 'expired', 'message'] as $template) {
+        foreach (['staff-code', 'activated', 'expired', 'message', 'approved'] as $template) {
             $html = (new AccountMail($user, 'Subject', $template, $data))->render();
             $this->assertStringContainsString('Juan', $html, $template);
         }
@@ -190,7 +164,7 @@ class StaffCodeActivationTest extends TestCase
         $this->assertMatchesRegularExpression($bold('Juan'), $message);
         $this->assertMatchesRegularExpression($bold($place), $message);
         $this->assertMatchesRegularExpression($bold($place), (new AccountMail($user, 'S', 'staff-code', $data))->render());
-        $this->assertStringContainsString('Barangay Fresh Barangay, Test City, Test Province', (new AccountMail($user, 'S', 'welcome', $data))->render());
+        $this->assertStringContainsString('Barangay Fresh Barangay, Test City, Test Province', (new AccountMail($user, 'S', 'approved', $data))->render());
         $this->assertStringNotContainsString('<b>hi</b>', (new AccountMail($user, 'S', 'message', $data))->render());
     }
 }

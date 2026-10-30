@@ -33,20 +33,13 @@ Route::get('/files/{file}', [\App\Http\Controllers\ManagedFileController::class,
 // Rate-limited to blunt credential brute-forcing: 10 attempts/min per IP.
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
-// Self-registration — rate-limited to blunt scripted account-creation spam.
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 // A first Administrator's sign-in plus the staff code a Super Admin emailed them.
 Route::post('/activate-account', [AuthController::class, 'activateWithStaffCode'])->middleware('throttle:10,1');
 // An invited staff member sets their password from the emailed link.
 Route::post('/invites/accept', [AuthController::class, 'acceptInvite'])->middleware('throttle:10,1');
-// Read-only lookup used interactively while filling the registration form —
-// no credentials involved, but still throttled so it can't be used to
-// cheaply enumerate which barangays already have an Admin.
-Route::get('/address-suggestions', [\App\Http\Controllers\AddressSuggestionController::class, 'index'])->middleware('throttle:20,1');
-Route::get('/registration-status', [AuthController::class, 'registrationStatus'])->middleware('throttle:20,1');
 
-// Cascading Province -> City/Municipality -> Barangay lists for the
-// registration form's address fields.
+// Cascading Province -> City/Municipality -> Barangay lists used by the
+// Super Admin's barangay forms and the Vehicle Location map.
 Route::get('/provinces', [ProvinceController::class, 'index']);
 // Narrower list for the admin Vehicle Location map's boundary selector —
 // only provinces that actually have registered barangay/boundary data.
@@ -60,7 +53,7 @@ Route::get('/barangays/registered', [BarangayController::class, 'registered']);
 Route::get('/barangays/{barangay}', [BarangayController::class, 'show']);
 
 // Support Center's "Report a Concern" form — no account required. Rate-limited
-// like /register to blunt scripted spam.
+// to blunt scripted spam.
 Route::post('/concern-reports', [ConcernReportController::class, 'store'])->middleware('throttle:5,1');
 
 /*

@@ -1,5 +1,5 @@
 import SearchableSelect from '../components/SearchableSelect';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import Icon from '../components/Icon';
@@ -175,77 +175,6 @@ export function UsersTab({ users, onChangeRole, onToggleActive, onApprove, onRej
   return <div className="superadmin-tab"><AdminManagementCard toolbar={<><LocalSearchInput value={search} onChange={setSearch} placeholder="Search user or email..." /><AdminFilterField label="Barangay"><SearchableSelect value={barangay} onChange={(event) => setBarangay(event.target.value)}><option value="">All Barangays</option>{[...new Map(users.map((account) => [String(account.barangay_id), location(account)])).entries()].map(([id, name]) => <option key={id} value={id}>{name}</option>)}</SearchableSelect></AdminFilterField><AdminFilterField label="Role"><SearchableSelect value={role} onChange={(event) => setRole(event.target.value)}><option value="">All Roles</option>{ROLES.map((name) => <option key={name}>{name}</option>)}</SearchableSelect></AdminFilterField><AdminFilterField label="Account status"><SearchableSelect value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All Statuses</option>{['Active', 'Deactivated', 'Pending Approval'].map((name) => <option key={name}>{name}</option>)}</SearchableSelect></AdminFilterField></>}>
     <PaginatedTable rows={visible} columns={columns} rowClassName={(account) => isPending(account) ? 'sa-row-waiting' : undefined} emptyMessage="No matching users" emptyDescription="Try another user name or adjust the account filters." />
   </AdminManagementCard>{emailing && <MessageEmail account={emailing} onSend={onSendEmail} onClose={() => setEmailing(null)} onRequestConfirmation={onRequestConfirmation} />}{editing && <AdminActionDrawer title="Edit account role" description="Review this account's access before saving." onClose={() => setEditing(null)}><AdminIdentity name={editing.name} email={editing.email} /><form className="sa-role-form" onSubmit={requestRoleChange}><p>Current roles: <strong>{effectiveRoles(editing).join(', ')}</strong></p><AdminFilterField label="New role"><SearchableSelect value={nextRole} onChange={(event) => setNextRole(event.target.value)}>{ROLES.map((name) => <option key={name}>{name}</option>)}</SearchableSelect></AdminFilterField><p className="muted">Saving replaces the account's current roles. Last-Administrator and account restrictions still apply.</p><div className="sa-row-actions"><button type="button" className="ghost-button" onClick={() => setEditing(null)}>Cancel</button><button type="submit" className="primary-button" disabled={nextRole === editing.role && effectiveRoles(editing).length === 1}>Save Role</button></div></form></AdminActionDrawer>}</div>;
-}
-
-export function RegistrationCodesTab({ barangays, initialBarangay, onRequestConfirmation, setNotice, onChanged }) {
-  const [provinces, setProvinces] = useState([]);
-  const [cityLookup, setCityLookup] = useState({ key: '', rows: [], error: null });
-  const [cityRetry, setCityRetry] = useState(0);
-  const [provinceId, setProvinceId] = useState('');
-  const [cityId, setCityId] = useState('');
-  const [barangayId, setBarangayId] = useState(initialBarangay ? String(initialBarangay.id) : '');
-  const [result, setResult] = useState({ code: null, updated: null, loading: false, error: null });
-  const [retry, setRetry] = useState(0);
-  const [barangayLookup, setBarangayLookup] = useState({ cityId: '', rows: [], error: null });
-  const [barangayRetry, setBarangayRetry] = useState(0);
-  const cityLookupKey = `${provinceId}:${cityRetry}`;
-  const cities = cityLookup.key === cityLookupKey ? cityLookup.rows : [];
-  const citiesLoading = Boolean(provinceId) && cityLookup.key !== cityLookupKey;
-  const citiesError = cityLookup.key === cityLookupKey ? cityLookup.error : null;
-  const selectedRef = useRef(barangayId);
-  useEffect(() => { selectedRef.current = barangayId; }, [barangayId]);
-  useEffect(() => {
-    let current = true;
-    api.get('/provinces').then(({ data }) => { if (!current) return; setProvinces(data); if (initialBarangay) setProvinceId(String(data.find((p) => p.name === initialBarangay.province_name)?.id ?? '')); }).catch(() => { if (current) setNotice({ type: 'error', text: 'Could not load provinces. Please reopen Registration Codes to retry.' }); });
-    return () => { current = false; };
-  }, [initialBarangay, setNotice]);
-  useEffect(() => {
-    if (!provinceId) return;
-    let current = true;
-    api.get('/cities', { params: { province_id: provinceId } }).then(({ data }) => { if (!current) return; setCityLookup({ key: cityLookupKey, rows: data, error: null }); if (initialBarangay?.province_name === provinces.find((p) => String(p.id) === provinceId)?.name) setCityId(String(data.find((city) => city.name === initialBarangay.city_name)?.id ?? '')); }).catch(() => { if (current) setCityLookup({ key: cityLookupKey, rows: [], error: 'Could not load cities. Please retry.' }); });
-    return () => { current = false; };
-  }, [provinceId, initialBarangay, provinces, cityLookupKey]);
-  useEffect(() => {
-    if (!barangayId) return;
-    let current = true;
-    api.get(`/superadmin/barangays/${barangayId}/registration-code`).then(({ data }) => { if (current) { setResult({ code: data.staff_code, updated: data.updated_at, loading: false, error: null }); onChanged?.(); } }).catch((error) => { if (current) setResult({ code: null, updated: null, loading: false, error: error.response?.data?.message ?? 'Could not load the registration code.' }); });
-    return () => { current = false; };
-  }, [barangayId, retry, onChanged]);
-  useEffect(() => {
-    if (!cityId) return;
-    let current = true;
-    api.get('/barangays', { params: { city_id: cityId } }).then(({ data }) => {
-      if (current) setBarangayLookup({ cityId, rows: data, error: null });
-    }).catch(() => {
-      if (current) setBarangayLookup({ cityId, rows: [], error: 'Could not load barangays. Please retry.' });
-    });
-    return () => { current = false; };
-  }, [cityId, barangayRetry]);
-  const selectedProvince = provinces.find((p) => String(p.id) === provinceId);
-  const selectedCity = cities.find((city) => String(city.id) === cityId);
-  const barangaysLoading = Boolean(cityId) && barangayLookup.cityId !== cityId;
-  const barangaysError = barangayLookup.cityId === cityId ? barangayLookup.error : null;
-  const options = useMemo(() => {
-    if (!selectedCity || barangayLookup.cityId !== cityId) return [];
-    const managed = barangays.filter((b) => b.city_name === selectedCity.name && b.province_name === selectedProvince?.name);
-    return [...new Map([...managed, ...barangayLookup.rows].map((b) => [String(b.id), b])).values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [barangays, selectedCity, selectedProvince, barangayLookup, cityId]);
-  const selected = options.find((b) => String(b.id) === barangayId) ?? barangays.find((b) => String(b.id) === barangayId);
-  const changeBarangay = (id) => { selectedRef.current = id; setBarangayId(id); setResult({ code: null, updated: null, loading: Boolean(id), error: null }); };
-  const regenerate = () => {
-    const id = barangayId;
-    onRequestConfirmation({ title: 'Regenerate Registration Code', message: `Regenerate the code for ${selected?.name}? The old code stops working immediately.`, confirmLabel: 'Regenerate', variant: 'danger', onConfirm: async () => {
-      if (selectedRef.current === id) setResult({ code: null, updated: null, loading: true, error: null });
-      try { const { data } = await api.post(`/superadmin/barangays/${id}/registration-code/regenerate`, { expected_updated_at: result.updated }); if (selectedRef.current === id) setResult({ code: data.staff_code, updated: data.updated_at, loading: false, error: null }); onChanged?.(); setNotice({ type: 'success', text: 'Registration code regenerated.' }); }
-      catch (error) { if (selectedRef.current === id) setResult({ code: null, updated: null, loading: false, error: error.response?.data?.message ?? 'Could not regenerate that code.' }); if (error.response?.status === 409) setRetry((value) => value + 1); throw error; }
-    } });
-  };
-  const copyCode = async () => { try { await navigator.clipboard.writeText(result.code); setNotice({ type: 'success', text: 'Registration code copied.' }); } catch { setNotice({ type: 'error', text: 'Could not copy automatically. Select the code and copy it manually.' }); } };
-  return <div className="superadmin-tab sa-codes"><AdminManagementCard toolbar={<><AdminFilterField label="Province"><SearchableSelect value={provinceId} onChange={(event) => { setProvinceId(event.target.value); setCityId(''); changeBarangay(''); }}><option value="">Select a province</option>{provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</SearchableSelect></AdminFilterField><AdminFilterField label="City / Municipality"><SearchableSelect disabled={!provinceId || citiesLoading || Boolean(citiesError)} value={cityId} onChange={(event) => { setCityId(event.target.value); changeBarangay(''); }}><option value="">{citiesLoading ? 'Loading cities...' : citiesError ? 'Cities unavailable' : provinceId ? 'Select a city' : 'Select a province first'}</option>{cities.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}</SearchableSelect></AdminFilterField><AdminFilterField label="Barangay"><SearchableSelect disabled={!cityId || barangaysLoading || Boolean(barangaysError) || !options.length} value={barangayId} onChange={(event) => changeBarangay(event.target.value)}><option value="">{barangaysLoading ? 'Loading barangays...' : barangaysError ? 'Barangays unavailable' : cityId ? (options.length ? 'Select a barangay' : 'No barangays available') : 'Select a city first'}</option>{options.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</SearchableSelect></AdminFilterField></>}>
-    {citiesError && <p className="notice error" role="alert">{citiesError} <button type="button" className="ghost-button" onClick={() => setCityRetry((value) => value + 1)}>Retry cities</button></p>}
-    {barangaysError && <p className="notice error" role="alert">{barangaysError} <button type="button" className="ghost-button" onClick={() => { setBarangayLookup({ cityId: '', rows: [], error: null }); setBarangayRetry((value) => value + 1); }}>Retry barangays</button></p>}
-    {!barangayId ? <AdminEmptyState icon="key" title="Select a barangay" description="Choose a province, city, and barangay to view or provision its staff registration code." /> : result.error ? <AdminEmptyState icon="alert" title="Code unavailable" description={result.error}><button className="ghost-button" type="button" onClick={() => { setResult({ code: null, updated: null, loading: true, error: null }); setRetry(retry + 1); }}>Retry lookup</button></AdminEmptyState> : result.loading || !result.code ? <AdminEmptyState icon="key" title="Looking up registration code" description="Checking authorized access for this barangay." /> : <div className="sa-code-details"><div><h3>Registration Code Details</h3><p><strong>{selected?.name}</strong> · {[selectedCity?.name ?? selected?.city_name, selectedProvince?.name ?? selected?.province_name].filter(Boolean).join(', ')}</p></div><code>{result.code}</code>{result.updated && <p>Last updated {formatDate(result.updated)}</p>}<div className="sa-row-actions"><button className="primary-button" type="button" onClick={copyCode}><Icon name="clipboard" size={16} />Copy Code</button><button className="ghost-button sa-destructive" type="button" onClick={regenerate}>Regenerate Code</button></div></div>}
-  </AdminManagementCard></div>;
 }
 
 export function ActivityLogTab() {

@@ -9,16 +9,16 @@ import api from '../api/axios';
 
 const FAQ = [
   {
-    q: 'What happens after I register as the first barangay Admin?',
-    a: 'Your account stays inactive until a Super Admin approves it. Submission creates an in-app notification and a Pending Approvals entry; there is no email or SMS alert. You can leave the page. Coordinate with your barangay office so the platform administrator can verify your appointment through a trusted contact. The staff code alone does not prove authority. If you cannot reach them, report an access concern below with your barangay and contact details; never send passwords or registration codes. Support is a follow-up channel, not a replacement for approval.',
+    q: 'How do I get an account?',
+    a: 'There is no public sign-up. Your LGU creates the Administrator account for each barangay and emails a temporary password with a sign-in link. A barangay Admin then invites the rest of the staff by email. If you should have an account but did not get an email, contact your barangay Admin or LGU.',
   },
   {
     q: 'How do I report a vehicle issue?',
     a: "As a Custodian, open Report Vehicle Issue to review issues and propose a maintenance ticket. Describe the problem and the planned repair. An Admin reviews the proposal and assigns the work. Maintenance Personnel can submit technical issue reports for a Custodian to review.",
   },
   {
-    q: "How do I approve a new staff registration, and what's the Staff Registration Code?",
-    a: 'As an Admin, go to Users to review pending registrations. The Staff Registration Code (also on the Users page) is what a barangay hands out to real staff so a stranger can\'t reach your approval queue — regenerate it any time from the same page if it leaks.',
+    q: 'How do I add staff to my barangay?',
+    a: 'As an Admin, open Users and choose Invite User. The person gets an email with a link to set their password; until they use it they show as Invited, and you can resend or cancel the invite from the same row.',
   },
   {
     q: 'How do I log completed repairs?',

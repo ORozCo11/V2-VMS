@@ -68,13 +68,15 @@ Abbreviations: WS = `frontend-spa/src/views/Workspace.jsx`, FC = `backend-api/ap
 
 **Dependencies:** T3 (email template family) · **Files:** new migration (invite token columns or `user_invites` table), `UserController.php` or new `UserInviteController.php`, `routes/api.php`, new `emails/invite.blade.php`, new `AcceptInvite.jsx`, `App.jsx`, WS Users module, test · **Scope:** M
 
-### T5: Simplified registration (no map)
-**Description:** **Depends on Open Question 1.** If registration stays: single page, no boundary map, no street address step, barangay chosen from one searchable list of provisioned barangays. If it's removed: delete `/register` route and page and point "Create account" links to a note saying accounts are created by the LGU or barangay Admin.
+### T5: Remove public self-registration ✅
+**Description:** Open Question 1 decided 2026-10-30: **remove it.** Accounts come only from the LGU (T2) and Admin invites/Add User (T4). Delete `/register` route and page and point people to a note saying accounts are created by the LGU or barangay Admin.
 
 **Acceptance criteria:**
-- [ ] No map on the registration path
-- [ ] Registration (if kept) fits on one screen with ≤ 6 fields
-- [ ] Registration tests updated and passing
+- [x] No map on the registration path (there is no registration path)
+- [x] `POST /register`, `GET /registration-status`, `GET /address-suggestions` return 404
+- [x] Registration tests updated and passing
+
+**Done notes:** removed `AuthController@register`/`registrationStatus` (+ their notify helpers), `AddressSuggestionController`, the `welcome` email, `Register.jsx/.css`, `AddressSuggestions.jsx`, the header Register button, the Admin Users "Staff Registration Code" panel, and the Super Admin "Registration Codes" tab and barangay-page code section. Support FAQ rewritten; login page says how to get an account. Tests: deleted registration-only tests (AuthControllerTest ×2, SuperAdminProvisioningTest ×1, PhaseB3DataScopingTest ×1, RegistrationGeographyTest ×3, StaffCodeActivationTest ×2, AddressSuggestionTest file); tests that only used registration to create a user now create it directly. Left for T13: registration-code endpoints/`RegistrationSetting`, staff-code endpoints/columns, `expired` email (its "Register again" link now lands on /login), Super Admin email dialog's "include staff code" option, unused `.auth-page-header-register-btn` CSS.
 
 **Verification:** `php artisan test --filter=Registration`; `npm run build`; manual on a phone-width screen.
 

@@ -30,30 +30,6 @@ class RegistrationGeographyTest extends TestCase
         ];
     }
 
-    private function payload(City $city, Barangay $barangay): array
-    {
-        return [
-            'name' => 'Geography Tester', 'email' => 'geography@example.com',
-            'password' => 'password123', 'password_confirmation' => 'password123',
-            'phone' => '09171234567', 'address' => 'Test Street',
-            'province_id' => $city->province_id, 'city_id' => $city->id,
-            'barangay_id' => $barangay->id,
-            'staff_code' => RegistrationSetting::for($barangay->id)->staff_code,
-        ];
-    }
-
-    public function test_registration_cannot_create_a_barangay_from_free_text(): void
-    {
-        [$city] = $this->cities();
-        $this->postJson('/api/register', [
-            'name' => 'Geography Tester', 'email' => 'geography@example.com',
-            'password' => 'password123', 'password_confirmation' => 'password123',
-            'phone' => '09171234567', 'address' => 'Test Street',
-            'city_id' => $city->id, 'barangay_name' => 'Invented Barangay', 'staff_code' => 'INVALID',
-        ])->assertUnprocessable()->assertJsonValidationErrors(['barangay_id', 'barangay_name']);
-        $this->assertDatabaseCount('barangays', 0);
-    }
-
     public function test_same_named_barangays_have_distinct_code_matched_boundaries(): void
     {
         [$cebu, $mandaue] = $this->cities();
@@ -67,36 +43,6 @@ class RegistrationGeographyTest extends TestCase
         $this->getJson('/api/barangays?city_id='.$cebu->id)->assertJsonCount(1)->assertJsonPath('0.id', $a->id);
     }
 
-    public function test_registration_rejects_wrong_city_province_and_non_reference_ids(): void
-    {
-        [$cebu, $mandaue] = $this->cities();
-        $barangay = Barangay::create(['name' => 'Banilad', 'city_id' => $mandaue->id, 'psgc_code' => '0731300003']);
-        $payload = $this->payload($cebu, $barangay);
-        $this->postJson('/api/register', $payload)->assertUnprocessable()->assertJsonValidationErrors('barangay_id');
-        $this->getJson('/api/registration-status?city_id='.$cebu->id.'&barangay_id='.$barangay->id)
-            ->assertUnprocessable()->assertJsonValidationErrors('barangay_id');
-        $other = Province::create(['name' => 'Other Province', 'code' => '990000000']);
-        $payload = $this->payload($mandaue, $barangay);
-        $payload['province_id'] = $other->id;
-        $this->postJson('/api/register', $payload)->assertUnprocessable()->assertJsonValidationErrors('city_id');
-        $legacy = Barangay::create(['name' => 'Unknown Legacy Name', 'city_id' => $cebu->id]);
-        $this->postJson('/api/register', $this->payload($cebu, $legacy))->assertUnprocessable()->assertJsonValidationErrors('barangay_id');
-        $this->assertDatabaseMissing('users', ['email' => 'geography@example.com']);
-    }
-
-    public function test_successful_registration_attaches_the_selected_boundary_and_requires_approval(): void
-    {
-        [$cebu] = $this->cities();
-        $barangay = Barangay::create(['name' => 'Banilad', 'city_id' => $cebu->id, 'psgc_code' => '0730600007']);
-        $this->postJson('/api/register', $this->payload($cebu, $barangay))->assertCreated();
-        $this->assertDatabaseHas('users', ['barangay_id' => $barangay->id, 'city_id' => $cebu->id, 'is_active' => false]);
-        $this->assertNotNull($barangay->fresh()->boundary);
-        $this->assertSame(BarangayGeography::SOURCE, $barangay->fresh()->boundary_source);
-        $this->assertSame('needs_review', $barangay->fresh()->boundary_status);
-        $this->assertNull($barangay->fresh()->boundary_verified_at);
-        $this->getJson('/api/barangays/'.$barangay->id)->assertJsonPath('boundary_verified', false);
-    }
-
     public function test_unknown_boundaries_never_fall_back_to_another_barangay(): void
     {
         [$cebu] = $this->cities();
@@ -104,7 +50,7 @@ class RegistrationGeographyTest extends TestCase
         $this->getJson('/api/barangays/'.$barangay->id)->assertOk()->assertJsonPath('boundary', null);
     }
 
-    public function test_suba_registration_and_existing_accounts_use_detailed_boundaries(): void
+    public function test_suba_and_existing_accounts_use_detailed_boundaries(): void
     {
         $province = Province::create(['name' => 'Cebu', 'code' => '072200000']);
         $city = City::create(['name' => 'Bantayan', 'code' => '072209000', 'province_id' => $province->id]);
@@ -115,7 +61,8 @@ class RegistrationGeographyTest extends TestCase
         $this->assertSame('Polygon', $geometry['type']);
         $this->assertGreaterThan(1000, count($geometry['coordinates'][0]), 'Suba must retain its coastline and street-level detail.');
         $this->assertNotEquals($triangle, $geometry);
-        $this->postJson('/api/register', $this->payload($city, $barangay))->assertCreated();
+        // Attaching (what onboarding a barangay does) stores the detailed reference geometry.
+        app(BarangayGeography::class)->attachBoundary($barangay->fresh());
         $this->assertSame($geometry, $barangay->fresh()->boundary);
         $this->assertSame(BarangayGeography::SOURCE, $barangay->fresh()->boundary_source);
 

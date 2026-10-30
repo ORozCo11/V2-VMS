@@ -63,11 +63,6 @@ class BarangayBoundaryReviewTest extends TestCase
         $this->getJson('/api/barangays/'.$barangay->id)->assertJsonPath('boundary_verified', true);
         app(\App\Services\BarangayGeography::class)->attachBoundary($barangay->fresh());
         $this->assertSame($replacement, $barangay->fresh()->boundary);
-        $this->postJson('/api/register', [
-            'name' => 'Future registrant', 'email' => 'future-boundary@example.com', 'password' => 'password123', 'password_confirmation' => 'password123',
-            'phone' => '09171234567', 'address' => 'Test Street', 'city_id' => $barangay->city_id, 'barangay_id' => $barangay->id,
-            'staff_code' => \App\Models\RegistrationSetting::for($barangay->id)->staff_code,
-        ])->assertCreated();
         $this->assertSame($replacement, $barangay->fresh()->boundary);
         $this->assertSame($this->superAdmin->id, $barangay->fresh()->boundary_verified_by);
     }

@@ -47,38 +47,6 @@ class SuperAdminProvisioningTest extends TestCase
     }
 
     #[Test]
-    public function registration_still_cannot_produce_a_super_admin(): void
-    {
-        // A NON-first registrant (the barangay already has an Admin) is the
-        // path where requested_role is actually validated against
-        // Rule::in(['Custodian', 'Maintenance Personnel']) — the first-ever
-        // registrant for a barangay is always forced to 'Admin' regardless
-        // of what's sent, which wouldn't exercise this check at all.
-        $province = Province::create(['code' => 'TST', 'name' => 'Test Province']);
-        $city = City::create(['province_id' => $province->id, 'code' => 'TSTC', 'name' => 'Test City']);
-        $barangay = Barangay::create(['name' => 'Test Barangay', 'city_id' => $city->id, 'psgc_code' => '0102801001']);
-        $setting = RegistrationSetting::for($barangay->id);
-        User::factory()->create(['role' => 'Admin', 'roles' => ['Admin'], 'barangay_id' => $barangay->id]);
-
-        $response = $this->postJson('/api/register', [
-            'name' => 'Sneaky',
-            'email' => 'sneaky@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'phone' => '09171234567',
-            'address' => '123 Test St',
-            'city_id' => $city->id,
-            'barangay_id' => $barangay->id,
-            'requested_role' => 'Super Admin',
-            'staff_code' => $setting->staff_code,
-        ]);
-
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors('requested_role');
-        $this->assertDatabaseMissing('users', ['email' => 'sneaky@example.com']);
-    }
-
-    #[Test]
     public function superadmin_create_command_provisions_a_working_account(): void
     {
         $this->artisan('superadmin:create')

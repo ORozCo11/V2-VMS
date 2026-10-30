@@ -455,29 +455,4 @@ class PhaseB3DataScopingTest extends TestCase
     // Phase B6 — an ordinary (non-first-Admin) registration notifies the
     // barangay's own existing Admin(s), not just Super Admins
     // =======================================================================
-
-    #[Test]
-    public function an_ordinary_staff_registration_notifies_the_barangays_existing_admins(): void
-    {
-        Barangay::findOrFail($this->barangayId)->update(['psgc_code' => '0102801001']);
-        $setting = RegistrationSetting::for($this->barangayId);
-
-        $this->postJson('/api/register', [
-            'name' => 'New Custodian',
-            'email' => 'new-custodian@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'phone' => '09171234567',
-            'address' => '123 Test St',
-            'city_id' => $this->cityId,
-            'barangay_id' => $this->barangayId,
-            'staff_code' => $setting->staff_code,
-            'requested_role' => 'Custodian',
-        ])->assertCreated();
-
-        $this->assertDatabaseHas('notifications', [
-            'user_id' => $this->admin->id,
-            'type' => 'pending_staff_approval',
-        ]);
-    }
 }
