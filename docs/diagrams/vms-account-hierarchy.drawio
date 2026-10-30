@@ -1,0 +1,92 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="vms-account-hierarchy" name="Account Hierarchy">
+    <mxGraphModel dx="1000" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="760" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Developers -->
+        <mxCell id="dev" value="DEVELOPERS (maintain the system)" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="20" width="260" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- LGU / Super Admin -->
+        <mxCell id="lgu" value="LGU — SUPER ADMIN&lt;br&gt;(owner of the system)" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="320" y="140" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dev_lgu" value="Hands over the system" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="dev" target="lgu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note_lgu" value="&lt;b&gt;LGU (Super Admin)&lt;/b&gt;&lt;br&gt;• Creates the Admin account for each barangay&lt;br&gt;• Approves accounts — once approved, the user can log in directly&lt;br&gt;• Account email includes a link straight to the login page" style="shape=note;whiteSpace=wrap;html=1;align=left;spacingLeft=8;size=14;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="650" y="120" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e_note_lgu" style="html=1;dashed=1;endArrow=none;" edge="1" parent="1" source="note_lgu" target="lgu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Barangays -->
+        <mxCell id="b1" value="BARANGAY 1" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="300" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="b2" value="BARANGAY 2" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="290" y="300" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="b3" value="BARANGAY 3" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="520" y="300" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="b4" value="BARANGAY n" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="750" y="300" width="170" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_lgu_b1" value="Creates Admin account" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="lgu" target="b1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_lgu_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="lgu" target="b2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_lgu_b3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="lgu" target="b3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_lgu_b4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="lgu" target="b4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Barangay 1 detail -->
+        <mxCell id="badmin" value="BARANGAY ADMIN" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="420" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e_b1_badmin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="b1" target="badmin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note_admin" value="&lt;b&gt;Barangay Admin&lt;/b&gt;&lt;br&gt;• Adds the other users for their barangay&lt;br&gt;• Invite by email, or batch upload when there are many users (allowed file types and size limit enforced)" style="shape=note;whiteSpace=wrap;html=1;align=left;spacingLeft=8;size=14;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="300" y="405" width="300" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e_note_admin" style="html=1;dashed=1;endArrow=none;" edge="1" parent="1" source="note_admin" target="badmin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cust" value="CUSTODIAN" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="560" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="maint" value="MAINTENANCE PERSONNEL" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="560" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e_admin_cust" value="Adds / invites" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="badmin" target="cust">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_admin_maint" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="badmin" target="maint">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="start" value="THIS IS WHERE THE FLEET WORKFLOW STARTS" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="640" width="310" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="e_start" style="html=1;endArrow=block;dashed=1;" edge="1" parent="1" source="maint" target="start">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
