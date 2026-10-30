@@ -74,16 +74,6 @@ class StaffCodeActivationTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('staff_code');
     }
 
-    public function test_signing_in_while_waiting_reports_the_waiting_state_without_a_token(): void
-    {
-        $this->registerFirstAdmin();
-
-        $this->postJson('/api/login', ['email' => 'juan@example.com', 'password' => 'password123'])
-            ->assertForbidden()
-            ->assertJson(['awaiting_staff_code' => true, 'staff_code_sent' => false])
-            ->assertJsonMissing(['access_token']);
-    }
-
     public function test_the_code_cannot_be_used_before_it_is_sent(): void
     {
         $this->registerFirstAdmin();
@@ -110,37 +100,6 @@ class StaffCodeActivationTest extends TestCase
         $this->assertFalse($fresh->awaiting_staff_code);
         $this->assertNotNull($fresh->approved_at);
         Mail::assertSent(AccountMail::class, fn ($mail) => $mail->template === 'activated');
-    }
-
-    // Regression: approving used to activate the account outright, so the
-    // person signed in without ever entering the emailed code.
-    public function test_approving_a_first_admin_still_requires_the_code_to_sign_in(): void
-    {
-        $user = $this->registerFirstAdmin();
-        Sanctum::actingAs($this->superAdmin, ['*']);
-
-        $this->putJson("/api/superadmin/users/{$user->id}/activate")->assertOk();
-        $this->postJson("/api/superadmin/users/{$user->id}/send-staff-code")->assertOk();
-
-        $approved = $user->fresh();
-        $this->assertFalse($approved->is_active);
-        $this->assertTrue($approved->awaiting_staff_code);
-        $this->assertNotNull($approved->approved_at);
-
-        $this->postJson('/api/login', ['email' => 'juan@example.com', 'password' => 'password123'])
-            ->assertForbidden()->assertJson(['awaiting_staff_code' => true, 'staff_code_sent' => true]);
-        $this->activate($this->code())->assertOk();
-        $this->assertTrue($user->fresh()->is_active);
-    }
-
-    public function test_an_approved_first_admin_who_never_entered_the_code_can_still_be_rejected(): void
-    {
-        $user = $this->registerFirstAdmin();
-        Sanctum::actingAs($this->superAdmin, ['*']);
-        $this->putJson("/api/superadmin/users/{$user->id}/activate")->assertOk();
-
-        $this->deleteJson("/api/superadmin/users/{$user->id}/reject")->assertOk();
-        $this->assertModelMissing($user);
     }
 
     public function test_an_expired_code_cancels_the_registration(): void

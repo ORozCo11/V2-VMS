@@ -721,19 +721,16 @@ class SuperAdminController extends Controller
     {
         $this->requireAbility($request, 'user.activate_platform', 'Only a Super Admin can perform this action.');
 
-        // A first Administrator only ever becomes active by entering their
-        // emailed staff code (AuthController::activateWithStaffCode). Approving
-        // one records the review and nothing more — activating here is what
-        // let approved first Admins sign in without ever entering the code.
-        if ($user->awaiting_staff_code) {
-            $user->update(['approved_at' => $user->approved_at ?? now()]);
-            $this->log($request, 'Approve', "Approved {$user->name} ({$user->email}) as first Administrator; awaiting their staff registration code.");
-
-            return response()->json(['message' => "{$user->name} is approved. Email their staff registration code from Users; they must enter it to activate their account."]);
-        }
-
-        $user->update(['is_active' => true, 'approved_at' => $user->approved_at ?? now()]);
+        // Approval is the last step: the account is active at once and the
+        // owner is emailed a sign-in link. A first Administrator no longer
+        // waits for a staff code, so any leftover waiting state is cleared.
+        $firstApproval = !$user->is_active && ($user->approved_at === null || $user->awaiting_staff_code);
+        $user->update(['is_active' => true, 'approved_at' => $user->approved_at ?? now(), 'awaiting_staff_code' => false]);
         $this->log($request, 'Activate', "Activated {$user->name} ({$user->email}).");
+
+        if ($firstApproval) {
+            AccountMail::trySend($user, 'Your VMS account is approved', 'approved');
+        }
 
         return response()->json(['message' => "{$user->name} is approved and can now sign in."]);
     }
@@ -849,8 +846,10 @@ class SuperAdminController extends Controller
     {
         $this->requireAbility($request, 'user.view_pending', 'Only a Super Admin can perform this action.');
 
+        // Includes first Admins approved under the retired staff-code flow
+        // who never entered their code — approving them now activates them.
         return User::with('barangay.city.province')
-            ->whereNull('approved_at')
+            ->where(fn ($query) => $query->whereNull('approved_at')->orWhere('awaiting_staff_code', true))
             ->where('is_active', false)
             ->orderByDesc('created_at')
             ->get()

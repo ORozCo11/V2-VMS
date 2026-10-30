@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesAbilities;
 use App\Http\Controllers\Concerns\GuardsLastAdmin;
 use App\Http\Controllers\Concerns\GuardsOpenWorkOnDeactivation;
 use App\Http\Controllers\Concerns\UploadsImages;
+use App\Mail\AccountMail;
 use App\Models\ActivityLog;
 use App\Models\RegistrationSetting;
 use App\Models\User;
@@ -257,9 +258,14 @@ class UserController extends Controller
             $update['roles'] = [$data['role']];
         }
 
+        $firstApproval = $user->approved_at === null;
         $user->update($update);
 
         $this->log($request, 'Activate', $user->id, "Activated user \"{$user->name}\" ({$user->email})." . (!empty($data['role']) ? " Role confirmed/changed to {$data['role']}." : ''));
+
+        if ($firstApproval) {
+            AccountMail::trySend($user, 'Your VMS account is approved', 'approved');
+        }
 
         return response()->json(['message' => 'User activated.']);
     }

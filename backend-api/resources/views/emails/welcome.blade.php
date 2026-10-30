@@ -5,13 +5,13 @@ Thank you for registering with the Vehicle Management System (VMS) as the first 
 
 **Your account has been created, but it is not active yet.**
 
-Because you are the first Administrator for your barangay, the VMS Super Admin needs to confirm your appointment with your barangay office. Once you are confirmed, we will send your **Staff Registration Code** to this email address.
+Because you are the first Administrator for your barangay, the VMS Super Admin needs to confirm your appointment with your barangay office.
 
 **What happens next:**
 
 1. The Super Admin reviews your registration. You do not need to do anything yet.
-2. Watch this inbox, including your Spam or Promotions folder, for a second email with your Staff Registration Code.
-3. You will use that code to activate your account.
+2. Watch this inbox, including your Spam or Promotions folder, for an email saying your account is approved.
+3. Once approved, sign in with the email address and password you registered with.
 
 **Your registration details:**
 

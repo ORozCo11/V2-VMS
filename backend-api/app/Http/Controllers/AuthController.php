@@ -125,8 +125,8 @@ class AuthController extends Controller
         if ($isFirstForBarangay) {
             $barangayLabel = $user->barangay_name ?? $user->barangay?->name ?? 'their barangay';
             $this->notifySuperAdmins(
-                'New barangay Admin awaiting a staff code',
-                "{$user->name} registered as the first Admin for {$barangayLabel}. Confirm the appointment, then email them the staff registration code from Users.",
+                'New barangay Admin awaiting approval',
+                "{$user->name} registered as the first Admin for {$barangayLabel}. Confirm the appointment, then approve the account from Pending Approvals.",
                 'pending_admin_approval'
             );
             AccountMail::trySend($user, 'Welcome to VMS. Your account is waiting for approval', 'welcome');
@@ -222,17 +222,6 @@ class AuthController extends Controller
             ], 401); // Returns 401 Unauthorized status code
         }
 
-        if (!$user->is_active && $user->awaiting_staff_code) {
-            // No token: the code window re-sends these credentials with the code.
-            return response()->json([
-                'message' => $user->staff_code_sent_at
-                    ? 'Enter the staff registration code we emailed you to activate your account.'
-                    : 'Your account is waiting for a staff registration code from the Super Admin. We will email it to you.',
-                'awaiting_staff_code' => true,
-                'staff_code_sent' => $user->staff_code_sent_at !== null,
-            ], 403);
-        }
-
         if (!$user->is_active) {
             // approved_at is only ever set the moment an Admin (or, for a
             // barangay's first-ever Admin, a Super Admin) first approves an
@@ -245,12 +234,14 @@ class AuthController extends Controller
             // specifically the case a Super Admin approves, not their own
             // (nonexistent) barangay Admin — the message reflects who they're
             // actually waiting on.
-            $awaitsSuperAdmin = $user->approved_at === null
+            $awaitsSuperAdmin = ($user->approved_at === null || $user->awaiting_staff_code)
                 && $user->role === 'Admin'
                 && !User::where('barangay_id', $user->barangay_id)->where('id', '!=', $user->id)
                     ->havingRole('Admin')->where('is_active', true)->exists();
 
-            $message = $user->approved_at !== null
+            // A first Admin approved under the retired staff-code flow is
+            // still waiting on the Super Admin, not deactivated.
+            $message = $user->approved_at !== null && !$user->awaiting_staff_code
                 ? 'This account has been deactivated. Contact an administrator.'
                 : ($awaitsSuperAdmin
                     ? 'Your account is still awaiting approval from a Super Admin, as the first Admin for your barangay.'

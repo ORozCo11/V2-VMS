@@ -40,13 +40,15 @@ Abbreviations: WS = `frontend-spa/src/views/Workspace.jsx`, FC = `backend-api/ap
 
 **Dependencies:** T1 · **Files:** `SuperAdminController.php`, `routes/api.php`, `app/Mail/AccountMail.php`, new `resources/views/emails/admin-created.blade.php`, `SuperAdminPanels.jsx`, test · **Scope:** M
 
-### T3: Approval means immediate login; approval email has a login link
+### T3: Approval means immediate login; approval email has a login link ✅
 **Description:** `SuperAdminController@activateUser` and `UserController@activate` set the account active right away (no staff-code step) and send an "approved" email with a sign-in link. Existing `awaiting_staff_code` accounts become activatable this way. Remove the staff-code prompt from `Login.jsx`.
 
 **Acceptance criteria:**
-- [ ] After approval by Super Admin or Admin, the user can log in immediately
-- [ ] An "approved" email with a sign-in link is sent in both cases
-- [ ] `Login.jsx` no longer shows the staff-code window
+- [x] After approval by Super Admin or Admin, the user can log in immediately
+- [x] An "approved" email with a sign-in link is sent in both cases
+- [x] `Login.jsx` no longer shows the staff-code window
+
+**Done notes:** email is sent on first approval only (not when re-activating a deactivated account), and a mail outage doesn't block the approval. First Admins left "approved, waiting for code" reappear in Pending Approvals; approving them activates them (no automatic migration). Super Admin UI no longer shows Awaiting Code / Code Sent or the send-code dialog. Removed 3 obsolete staff-code tests. Left for T13: `/activate-account` route, `sendStaffCode` endpoint, `awaiting_staff_code`/`staff_code_sent_at` columns, `staff-code`/`activated` email templates, `ExpireUnclaimedRegistrations`.
 
 **Verification:** `php artisan test --filter=ApprovalImmediateLoginTest` + existing approval tests updated; `npm run build`; manual: approve a pending user, log in as them.
 
