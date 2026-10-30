@@ -82,13 +82,15 @@ Abbreviations: WS = `frontend-spa/src/views/Workspace.jsx`, FC = `backend-api/ap
 
 **Dependencies:** T2, T4, Open Question 1 · **Files:** `Register.jsx`, `Register.css`, `AuthController.php`, `App.jsx`, `Welcome`/landing links, tests · **Scope:** M
 
-### T6: Barangay Admin batch-uploads users
+### T6: Barangay Admin batch-uploads users ✅
 **Description:** Copy the `VehicleImportController` shape: template download (xlsx/csv: full name, email, phone, role), preview with per-row errors, commit that sends an invite (T4) to each valid row. Limits: .xlsx/.csv, 2 MB, 500 rows, shown in the dialog.
 
 **Acceptance criteria:**
-- [ ] Preview flags exactly the invalid rows with a reason (bad email, duplicate, unknown role); creates nothing
-- [ ] Commit creates and invites only valid rows; re-commit rejected
-- [ ] Wrong file type or too big rejected with a message naming the limit
+- [x] Preview flags exactly the invalid rows with a reason (bad email, duplicate, unknown role); creates nothing
+- [x] Commit creates and invites only valid rows; re-commit rejected
+- [x] Wrong file type or too big rejected with a message naming the limit
+
+**Done notes:** `UserImportController` + `user_imports` table; routes `GET /user-imports/template`, `POST /user-imports`, `POST /user-imports/{import}/commit`, `GET /user-imports/{import}/errors`; ability `user.invite`. Several roles per row allowed ("Custodian; Maintenance Personnel"). Invite creation moved into `App\Services\UserInviter`, shared with single invites. A row whose invite email fails is skipped (no account) and listed in the result. UI: "Upload Users" button → `components/UserImportDialog.jsx` (template links, file limits shown and checked before upload, preview table, problem-list download).
 
 **Verification:** `php artisan test --filter=UserImportTest`; `npm run build`; manual: 20-row file with 2 bad rows.
 

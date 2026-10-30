@@ -30,6 +30,7 @@ import { completedMaintenanceRecords, maintenanceSourceBucket, maintenanceSource
 import { currentCondition } from '../utils/conditionMonitoring';
 import { didRepairWorkOn } from '../utils/ticketVerification';
 import InviteUserDialog from '../components/InviteUserDialog';
+import UserImportDialog from '../components/UserImportDialog';
 
 const FormNoticeContext = createContext(null);
 // Lets shared table cells (VehicleCell, UserAvatarName) open the right detail
@@ -823,6 +824,7 @@ function Workspace() {
   const [userInfoTarget, setUserInfoTarget] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
   // Tracks whether the form on whatever special page is currently open has
   // been touched — set true the moment a field changes, cleared on submit,
@@ -2933,6 +2935,12 @@ function Workspace() {
         <WorkspaceFooter />
       </section>
     </main>
+    {importOpen && (
+      <UserImportDialog
+        onClose={() => setImportOpen(false)}
+        onImported={async (message) => { setNotice({ type: 'success', text: message }); await refreshCurrent(); }}
+      />
+    )}
     {inviteOpen && (
       <InviteUserDialog
         onClose={() => setInviteOpen(false)}
@@ -3372,7 +3380,10 @@ function Workspace() {
           <div className="panel-header-bar">
             <h3>Users <span className="count-badge">{visibleRows.length}</span></h3>
             {hasRole(user, 'Admin') && (
-              <button className="primary-button" type="button" onClick={() => setInviteOpen(true)}><Icon name="mail" size={15} /> Invite User</button>
+              <>
+                <button className="primary-button" type="button" onClick={() => setInviteOpen(true)}><Icon name="mail" size={15} /> Invite User</button>
+                <button className="ghost-button" type="button" onClick={() => setImportOpen(true)}><Icon name="users" size={15} /> Upload Users</button>
+              </>
             )}
             <LocalSearchInput
               value={searchQuery}

@@ -146,6 +146,10 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class, EnsurePasswordChan
     Route::post('/users/invite', [UserController::class, 'invite'])->middleware('throttle:20,1');
     Route::post('/users/{user}/invite/resend', [UserController::class, 'resendInvite'])->middleware('throttle:10,1');
     Route::delete('/users/{user}/invite', [UserController::class, 'cancelInvite']);
+    Route::get('/user-imports/template', [\App\Http\Controllers\UserImportController::class, 'template']);
+    Route::post('/user-imports', [\App\Http\Controllers\UserImportController::class, 'preview'])->middleware('throttle:20,1');
+    Route::post('/user-imports/{import}/commit', [\App\Http\Controllers\UserImportController::class, 'commit'])->middleware('throttle:10,1');
+    Route::get('/user-imports/{import}/errors', [\App\Http\Controllers\UserImportController::class, 'errorReport']);
     Route::put('/users/{user}', [UserController::class, 'update']);
     Route::put('/users/{user}/deactivate', [UserController::class, 'deactivate']);
     Route::put('/users/{user}/activate', [UserController::class, 'activate']);

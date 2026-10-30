@@ -10,11 +10,10 @@ use App\Mail\AccountMail;
 use App\Models\ActivityLog;
 use App\Models\RegistrationSetting;
 use App\Models\User;
+use App\Services\UserInviter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -143,7 +142,7 @@ class UserController extends Controller
      * sets a password from the link. If the email can't be sent the account
      * is rolled back, so no one holds an invite they never received.
      */
-    public function invite(Request $request)
+    public function invite(Request $request, UserInviter $inviter)
     {
         $this->requireAbility($request, 'user.invite', 'Only Admins can invite users.');
 
@@ -159,34 +158,29 @@ class UserController extends Controller
             'phone.regex' => 'Phone number must be 11 digits starting with 09 (e.g. 09171234567).',
         ]);
         $data = $this->normalizeRoles($request, $data);
-        $admin = $request->user();
 
-        $user = DB::transaction(function () use ($data, $admin) {
-            $user = User::create($data + [
-                'password' => Hash::make(Str::random(40)),
-                'barangay_id' => $admin->barangay_id,
-                'city_id' => $admin->city_id,
-                'barangay_name' => $admin->barangay?->name ?? $admin->barangay_name,
-                'is_active' => false,
-                'approved_at' => now(),
-            ]);
-            $this->sendInvite($user);
-
-            return $user;
-        });
+        try {
+            $user = $inviter->invite($data, $request->user());
+        } catch (\RuntimeException) {
+            abort(502, 'The invite email could not be sent, so no invite was saved. Check the mail settings and try again.');
+        }
 
         $this->log($request, 'Add', $user->id, "Invited \"{$user->name}\" ({$user->email}), role: " . implode('/', $user->roles ?? [$user->role]));
 
         return response()->json(['message' => "Invite sent to {$user->email}.", 'user' => $user->fresh()], 201);
     }
 
-    public function resendInvite(Request $request, User $user)
+    public function resendInvite(Request $request, User $user, UserInviter $inviter)
     {
         $this->requireAbility($request, 'user.invite', 'Only Admins can invite users.');
         $this->requireSameBarangay($request, $user);
         abort_unless($user->invite_pending, 422, 'This account has no pending invite. Deactivate it instead.');
 
-        DB::transaction(fn () => $this->sendInvite($user));
+        try {
+            DB::transaction(fn () => $inviter->send($user));
+        } catch (\RuntimeException) {
+            abort(502, 'The invite email could not be sent, so the earlier invite link still works. Check the mail settings and try again.');
+        }
         $this->log($request, 'Edit', $user->id, "Resent the invite to \"{$user->name}\" ({$user->email}).");
 
         return response()->json(['message' => "A new invite was sent to {$user->email}. Earlier invite links no longer work."]);
@@ -202,23 +196,6 @@ class UserController extends Controller
         $this->log($request, 'Delete', $user->id, "Cancelled the invite for \"{$user->name}\" ({$user->email}).");
 
         return response()->json(['message' => "The invite for {$user->email} was cancelled."]);
-    }
-
-    private function sendInvite(User $user): void
-    {
-        $token = $user->issueInvite();
-        $url = rtrim(config('app.frontend_url'), '/').'/accept-invite?'.http_build_query(['email' => $user->email, 'token' => $token]);
-
-        try {
-            Mail::to($user->email)->send(new AccountMail($user, "You're invited to VMS for Barangay {$user->barangay_name}", 'invite', [
-                'token' => $token,
-                'inviteUrl' => $url,
-                'expiresAt' => $user->invite_expires_at,
-            ]));
-        } catch (\Throwable $e) {
-            report($e);
-            abort(502, 'The invite email could not be sent, so no invite was saved. Check the mail settings and try again.');
-        }
     }
 
     public function update(Request $request, User $user)

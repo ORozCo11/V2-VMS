@@ -79,7 +79,7 @@ Detail (acceptance criteria, verification, files) in `tasks/todo.md`.
 - [x] T3: Approval means immediate login; approval email has login link
 - [x] T4: Barangay Admin invites a user by email
 - [x] T5: Remove public self-registration (decided: remove, 2026-10-30)
-- [ ] T6: Barangay Admin batch-uploads users
+- [x] T6: Barangay Admin batch-uploads users
 
 ### Checkpoint A: Onboarding
 - [ ] LGU creates Barangay Admin → Admin signs in from email link → changes password → invites Custodian → Custodian sets password and signs in
