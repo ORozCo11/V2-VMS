@@ -2,6 +2,7 @@ import LoadingOverlay from './LoadingOverlay';
 import { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContextObject';
+import ForceChangePassword from '../views/ForceChangePassword';
 
 export const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, token, loading } = useContext(AuthContext);
@@ -27,6 +28,11 @@ export const ProtectedRoute = ({ children, allowedRoles }) => {
   ));
   if (allowedRoles && !hasAnyAllowedRole) {
     return <Navigate to="/unauthorized" replace />;
+  }
+
+  // An account still on its temporary password can't use any workspace yet.
+  if (user?.must_change_password) {
+    return <ForceChangePassword />;
   }
 
   // Render the page workspace if security validations pass successfully

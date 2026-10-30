@@ -17,6 +17,7 @@ use App\Http\Controllers\ConcernReportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleImportController;
 use App\Http\Controllers\VehicleTypeFieldController;
+use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RestrictImpersonatedToReadOnly;
 use App\Http\Middleware\RestrictSuperAdminScope;
@@ -65,7 +66,7 @@ Route::post('/concern-reports', [ConcernReportController::class, 'store'])->midd
 | Protected Routes (Requires a Valid Sanctum Token in Header)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', EnsureUserIsActive::class, \App\Http\Middleware\RestrictImpersonationScope::class, RestrictSuperAdminScope::class, RestrictImpersonatedToReadOnly::class, \App\Http\Middleware\SignManagedFiles::class])->group(function () {
+Route::middleware(['auth:sanctum', EnsureUserIsActive::class, EnsurePasswordChanged::class, \App\Http\Middleware\RestrictImpersonationScope::class, RestrictSuperAdminScope::class, RestrictImpersonatedToReadOnly::class, \App\Http\Middleware\SignManagedFiles::class])->group(function () {
     Route::get('/files/refresh', [\App\Http\Controllers\ManagedFileController::class, 'refresh']);
 
     // Session termination route

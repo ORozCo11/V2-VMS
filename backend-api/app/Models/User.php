@@ -37,6 +37,7 @@ class User extends Authenticatable
         'can_register_vehicles',
         'awaiting_staff_code',
         'staff_code_sent_at',
+        'must_change_password',
     ];
 
     // How long an emailed staff code stays usable before the registration expires.
@@ -57,7 +58,26 @@ class User extends Authenticatable
         'can_register_vehicles' => 'boolean',
         'awaiting_staff_code' => 'boolean',
         'staff_code_sent_at' => 'datetime',
+        'must_change_password' => 'boolean',
     ];
+
+    /**
+     * Give the account a random temporary password the owner must replace on
+     * first sign-in. Returns the plaintext once so the creator can deliver it;
+     * only the hash is stored.
+     */
+    public function issueTemporaryPassword(): string
+    {
+        // Str::password draws from random_int(), a cryptographically secure source.
+        $plain = \Illuminate\Support\Str::password(12, symbols: false);
+
+        $this->forceFill([
+            'password' => \Illuminate\Support\Facades\Hash::make($plain),
+            'must_change_password' => true,
+        ])->save();
+
+        return $plain;
+    }
 
     public function staffCodeExpiresAt(): ?\Illuminate\Support\Carbon
     {

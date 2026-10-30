@@ -326,6 +326,7 @@ class AuthController extends Controller
                 'role' => $user->role, // Primary role — drives the portal layout
                 'roles' => $user->allRoles(), // Every hat this account may wear
                 'abilities' => $user->getAbilities(), // Phase B2 — what the frontend gates on
+                'must_change_password' => (bool) $user->must_change_password,
             ]
         ], 200);
     }
@@ -612,7 +613,9 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'old_password' => ['required', 'string'],
-            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed', 'different:old_password'],
+        ], [
+            'new_password.different' => 'Your new password must be different from your current one.',
         ]);
 
         if (! Hash::check($data['old_password'], $request->user()->password)) {
@@ -621,9 +624,10 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $request->user()->update([
+        $request->user()->forceFill([
             'password' => Hash::make($data['new_password']),
-        ]);
+            'must_change_password' => false,
+        ])->save();
 
         $request->user()->tokens()->where('id', '!=', $request->user()->currentAccessToken()?->id)->delete();
 
