@@ -506,3 +506,11 @@ Follow-up changes to menus, pages and flows. The sidebar contents per role are l
 - Retired (decommissioned) vehicles can be donors; their parts are logged as used.
 - **Ready to Respond** shows **Last Maintained** (the last time maintenance work was finished) instead of Last Readiness Check.
 - **Custodian menu:** the separate Maintenance Schedule item is removed. Condition Monitoring now has a **Next Maintenance** column (the soonest open schedule for each vehicle, which opens the schedule's page to view, edit or cancel it); planned maintenance is still added from the Condition Check form.
+
+## Revision - 12 November 2026
+
+- **Return to Admin.** A mechanic (or the named shop tester) can hand a work item back to the Admin with a reason (at least five characters) while it is Under Repair. The item stays Under Repair with nobody assigned; the Admin and the Custodian are both notified, the reason shows on the ticket for every role, and the Next Step reads "Returned to Admin - needs reassignment". The Admin's dashboard lists it under "Reassign returned work". Reassigning clears the notice.
+- **Named shop tester.** When the Admin approves an external-shop job, they choose the Maintenance Personnel who will test the vehicle when it returns from the shop (required). Only that person sees and can submit the shop test; the Admin can change the tester from the ticket, and the tester can return the test.
+- **Declined proposals.** The Custodian's notification now says the vehicle stays Needs Repair until a new Condition Check is recorded. The vehicle is deliberately not reset, because the Custodian's finding still stands.
+- **Dead code removed.** Direct ticket creation, the inspection step and "Open" status, per-item assign, reassign, verify, confirm and defer, the Admin "Close" button and "Unconfirm" were unreachable and are removed. Closing is only by the Custodian's verification. See Ticket-Dataflow-2026-11-12.md.
+- **Screens.** Repair Tickets cards order is Total, Proposals, Active, Closed, Declined, Cancelled, with a compact status filter. The dashboard attention list groups items by kind with one colour per kind and a "High priority" tag. "My Active Work Orders" opens the list already filtered to Active. The Condition Check and Record Repair Work pages were resized.

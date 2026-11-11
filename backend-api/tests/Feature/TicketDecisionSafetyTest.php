@@ -39,7 +39,7 @@ class TicketDecisionSafetyTest extends TestCase
     private function activate(MaintenanceTicket $t): void
     {
         Sanctum::actingAs($this->admin,['*']);
-        $payload=$t->subIssues[0]->repair_type==='external'?[]:['assigned_mechanic_id'=>$this->mechanic->id];
+        $payload=['assigned_mechanic_id'=>$this->mechanic->id];
         $this->putJson("/api/tickets/{$t->ticket_id}/approve",$payload)->assertOk();
     }
     private function submit(MaintenanceTicket $t): void

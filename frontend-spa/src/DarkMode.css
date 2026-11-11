@@ -41,7 +41,8 @@ html[data-theme="dark"] .topbar .topbar-gear-icon > path { fill: #93c5fd; }
 /* Dashboard actions and chart labels must read clearly on a dark surface. */
 html[data-theme="dark"] :is(.focus-card button, .focus-more, .focus-readiness-details > summary, .focus-error button) { color: var(--dark-link); }
 html[data-theme="dark"] :is(.focus-kpi-icon, .focus-task-mark, .ticket-method-icon, .subissue-empty-icon) { background: #193456; color: #bfdbfe; }
-html[data-theme="dark"] .focus-task-mark.is-urgent { background: #421f2d; color: #fda4af; }
+html[data-theme="dark"] .focus-task-mark.is-kind-schedule { background: #2e2350; color: #c4b5fd; }
+html[data-theme="dark"] .focus-task-mark.is-kind-readiness { background: #14352b; color: #a7f3d0; }
 html[data-theme="dark"] .focus-warning { color: #fcd34d; }
 html[data-theme="dark"] .focus-error { background: #351c28; border-color: #8b4557; color: #fecdd3; }
 html[data-theme="dark"] .chart-tooltip-card { background: var(--surface-2); border-color: var(--border); color: var(--text-strong); }

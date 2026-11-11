@@ -36,7 +36,7 @@ class TicketProcessIntegrityTest extends TestCase
         $id=$this->postJson('/api/tickets/propose',$payload)->assertCreated()->json('ticket_id');
         $ticket=MaintenanceTicket::with('subIssues')->findOrFail($id);
         Sanctum::actingAs($this->admin,['*']);
-        $approval=$mode==='external'?[]:['sub_issues'=>$ticket->subIssues->map(fn($s,$i)=>['sub_issue_id'=>$s->sub_issue_id,'assigned_mechanic_id'=>$i===0?$this->mechanic->id:$this->other->id])->all()];
+        $approval=$mode==='external'?['assigned_mechanic_id'=>$this->mechanic->id]:['sub_issues'=>$ticket->subIssues->map(fn($s,$i)=>['sub_issue_id'=>$s->sub_issue_id,'assigned_mechanic_id'=>$i===0?$this->mechanic->id:$this->other->id])->all()];
         $this->putJson("/api/tickets/$id/approve",$approval)->assertOk();
         return $ticket->fresh('subIssues');
     }

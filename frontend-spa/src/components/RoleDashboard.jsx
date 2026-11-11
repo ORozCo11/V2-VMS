@@ -19,8 +19,8 @@ function TaskList({ title, items, onViewAll, allLabel = 'View all', loading, err
     <header><h3>{title}</h3>{onViewAll && <button type="button" onClick={onViewAll}>{allLabel} <Icon name="chevronRight" size={14} /></button>}</header>
     {error ? <p className="focus-empty">Task data is unavailable. Open the module or retry above.</p> : loading ? <p className="focus-empty">Loading assignments…</p> : !items.length ? <p className="focus-empty">Nothing needs your attention here.</p> : <ul className="focus-tasks">
       {(expanded ? items : items.slice(0, 5)).map((item) => <li key={item.key}>
-        <span className={`focus-task-mark ${item.urgent ? 'is-urgent' : ''}`}><Icon name={item.icon ?? 'clipboard'} size={17} /></span>
-        <div><strong>{item.title}</strong><span>{item.reference}</span><small>{item.status}{item.date ? ` · ${date(item.date)}` : ''}</small></div>
+        <span className={`focus-task-mark is-kind-${String(item.key).split('-')[0]}`}><Icon name={item.icon ?? 'clipboard'} size={17} /></span>
+        <div><strong>{item.title}</strong><span>{item.reference}</span><small>{item.status}{item.date ? ` · ${date(item.date)}` : ''}{item.highPriority ? ' · High priority' : ''}</small></div>
         <button type="button" onClick={item.open}>{item.action ?? 'Review'} <Icon name="chevronRight" size={14} /></button>
       </li>)}
     </ul>}
@@ -64,20 +64,26 @@ export default function RoleDashboard({ data, user, basePath, onNavigate, onGoTo
   const pendingSchedules = schedules.filter((s) => s.status === 'Pending Approval');
   const metric = (label) => data.metrics?.find((m) => m.label === label)?.value ?? 0;
   const go = (module, filters = []) => onGoToModule(module, filters);
-  const ticketTask = (t, title = t.ticket_title) => ({ key: `ticket-${t.ticket_id}`, title, reference: `${t.vehicle?.vehicle_name ?? 'Vehicle'} · Ticket #${t.ticket_id}`, status: t.status, date: t.created_at, urgent: t.priority === 'High', open: () => onNavigate(`${basePath}/tickets/${t.ticket_id}`), action: 'View ticket' });
+  const ticketTask = (t, title = t.ticket_title) => ({ key: `ticket-${t.ticket_id}`, title, reference: `${t.vehicle?.vehicle_name ?? 'Vehicle'} · Ticket #${t.ticket_id}`, status: t.status, date: t.created_at, highPriority: t.priority === 'High', open: () => onNavigate(`${basePath}/tickets/${t.ticket_id}`), action: 'View ticket' });
   const scheduleTask = (s) => ({ key: `schedule-${s.schedule_id}`, title: s.maintenance_type, reference: `${s.vehicle?.vehicle_name ?? 'Vehicle'} · Schedule #${s.schedule_id}`, status: isScheduleOverdue(s) ? 'Overdue' : s.status, date: s.scheduled_date, urgent: isScheduleOverdue(s), icon: 'calendar', open: () => onNavigate(`${basePath}/schedules/${s.schedule_id}`), action: 'View schedule' });
   const activeMine = mine.filter((t) => t.status === 'Active');
   const tasks = admin ? [
     ...pendingTickets.map((t) => ticketTask(t, 'Review ticket proposal')),
     ...pendingSchedules.map((s) => ({ ...scheduleTask(s), title: 'Review schedule booking' })),
-    ...tickets.filter((t) => t.status === 'Active' && !(t.sub_issues ?? []).some((s) => s.repair_type === 'external') && !t.assigned_mechanic_id && !(t.sub_issues ?? []).some((s) => s.assigned_mechanic_id)).map((t) => ticketTask(t, 'Assign maintenance personnel')),
+    ...tickets.filter((t) => t.status === 'Active' && (t.sub_issues ?? []).some((s) => s.status === 'Under Repair' && (s.repair_type === 'external' ? !s.external_tester_id : !s.assigned_mechanic_id)))
+      .map((t) => ticketTask(t, (t.sub_issues ?? []).some((s) => s.returned_to_admin_at && s.status === 'Under Repair') ? 'Reassign returned work' : 'Assign maintenance personnel')),
     ...overdueSchedules.filter((s) => !s.resulting_ticket_id).map(scheduleTask),
   ] : custodian ? [
     ...verifications.map((t) => ticketTask(t, 'Verify completed repair')),
     ...tickets.filter((t) => t.status === 'Open' && sameId(t.assigned_custodian_id, user.id)).map((t) => ticketTask(t, 'Inspect reported issue')),
     ...watch.map((v) => ({ key: `readiness-${v.vehicle_id}`, title: 'Check vehicle readiness', reference: v.vehicle_name, status: ({ not_ready: 'Failed last check', stale: 'Check expired', unchecked: 'Not checked' })[v.state] ?? v.state, urgent: v.state === 'not_ready', icon: 'vehicle', open: () => onNavigate(`${basePath}/vehicles/${v.vehicle_id}`), action: 'View vehicle' })),
   ] : [...activeMine.map((t) => ticketTask(t)), ...mySchedules.map(scheduleTask)];
-  tasks.sort((a, b) => Number(b.urgent) - Number(a.urgent));
+  // Keep the same kind of item together (all proposals, then all bookings, then all overdue ...), oldest first
+  // inside each group, instead of mixing kinds by urgency.
+  const groupOf = (task) => `${String(task.key).split('-')[0]}|${task.status}`;
+  const groupOrder = [];
+  tasks.forEach((task) => { if (!groupOrder.includes(groupOf(task))) groupOrder.push(groupOf(task)); });
+  tasks.sort((a, b) => groupOrder.indexOf(groupOf(a)) - groupOrder.indexOf(groupOf(b)) || String(a.date ?? '').localeCompare(String(b.date ?? '')));
   const kpis = admin ? [
     { label: 'Pending Approvals', value: pending ? '—' : pendingTickets.length + pendingSchedules.length, detail: 'Ticket proposals and schedule bookings', icon: 'clipboard', open: () => go('tickets', ['Pending Approval']) },
     { label: 'Active Maintenance', value: metric('Vehicles Under Maintenance'), detail: 'Vehicles under maintenance', icon: 'wrench', open: () => go('vehicles', ['Under Maintenance']) },
@@ -87,7 +93,7 @@ export default function RoleDashboard({ data, user, basePath, onNavigate, onGoTo
     { label: 'Pending Verification', value: pending ? '—' : verifications.length, icon: 'checkCircle', open: () => go('ticketVerifications', ['Pending']) },
     { label: 'Readiness Checks Needed', value: watch.length, icon: 'vehicle', open: () => go('vehicles') },
   ] : [
-    { label: 'My Active Work Orders', value: pending ? '—' : activeMine.length, icon: 'wrench', open: () => go('ticketWorkOrders') },
+    { label: 'My Active Work Orders', value: pending ? '—' : activeMine.length, icon: 'wrench', open: () => go('ticketWorkOrders', ['Pending']) },
     { label: 'My Upcoming Maintenance', value: pending ? '—' : mySchedules.length - myOverdue.length, icon: 'calendar', open: () => go('schedules', ['MyAssigned']) },
     { label: 'My Overdue Assignments', value: pending ? '—' : myOverdue.length, detail: 'Assigned schedules past due', icon: 'alert', open: () => go('schedules', ['MyAssigned']) },
   ];

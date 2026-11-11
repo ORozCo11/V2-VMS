@@ -110,6 +110,12 @@ class TicketSubIssue extends Model
         'cannibalization_reviewed_by',
         'cannibalization_reviewed_at',
         'cannibalization_issue_report_id',
+        // Returned to the Admin by the mechanic, with a reason (cleared when the item is reassigned).
+        'returned_to_admin_at',
+        'returned_to_admin_by',
+        'returned_to_admin_reason',
+        // The Maintenance Personnel who tests an external-shop job when it returns.
+        'external_tester_id',
     ];
 
     protected $casts = [
@@ -127,6 +133,7 @@ class TicketSubIssue extends Model
         'external_returned_at' => 'datetime',
         'deferred_at'          => 'datetime',
         'cannibalization_reviewed_at' => 'datetime',
+        'returned_to_admin_at' => 'datetime',
         'maintenance_cost'     => 'decimal:2',
         'external_estimated_cost' => 'decimal:2',
         'functional_test'      => 'array',
@@ -207,6 +214,16 @@ class TicketSubIssue extends Model
     public function deferredBy()
     {
         return $this->belongsTo(User::class, 'deferred_by');
+    }
+
+    public function returnedToAdminBy()
+    {
+        return $this->belongsTo(User::class, 'returned_to_admin_by');
+    }
+
+    public function externalTester()
+    {
+        return $this->belongsTo(User::class, 'external_tester_id');
     }
 
     public function cannibalizationReviewedBy()

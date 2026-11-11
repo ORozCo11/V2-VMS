@@ -52,16 +52,19 @@ class ExternalShopTicketTest extends TestCase
     }
 
     #[Test]
-    public function an_external_ticket_is_approved_without_a_mechanic(): void
+    public function an_external_ticket_has_no_mechanic_but_needs_a_named_shop_tester(): void
     {
         $id = $this->propose('external');
         Sanctum::actingAs($this->admin, ['*']);
-        $this->putJson("/api/tickets/{$id}/approve", [])->assertOk();
+        // The Admin must name who will test the vehicle when it returns from the shop.
+        $this->putJson("/api/tickets/{$id}/approve", [])->assertUnprocessable();
+        $this->putJson("/api/tickets/{$id}/approve", ['assigned_mechanic_id' => $this->mechanic->id])->assertOk();
 
         $ticket = MaintenanceTicket::with('subIssues')->find($id);
         $this->assertSame('Active', $ticket->status);
         $this->assertNull($ticket->assigned_mechanic_id);
         $this->assertNull($ticket->subIssues->first()->assigned_mechanic_id);
+        $this->assertSame($this->mechanic->id, (int) $ticket->subIssues->first()->external_tester_id);
         $this->assertSame('Under Repair', $ticket->subIssues->first()->status);
     }
 
@@ -79,7 +82,7 @@ class ExternalShopTicketTest extends TestCase
     {
         $id = $this->propose('external');
         Sanctum::actingAs($this->admin, ['*']);
-        $this->putJson("/api/tickets/{$id}/approve", [])->assertOk();
+        $this->putJson("/api/tickets/{$id}/approve", ['assigned_mechanic_id' => $this->mechanic->id])->assertOk();
         $sub = MaintenanceTicket::with('subIssues')->find($id)->subIssues->first();
         $base = "/api/tickets/{$id}/sub-issues/{$sub->sub_issue_id}";
 
@@ -114,7 +117,7 @@ class ExternalShopTicketTest extends TestCase
     {
         $id = $this->propose('external');
         Sanctum::actingAs($this->admin, ['*']);
-        $this->putJson("/api/tickets/{$id}/approve", [])->assertOk();
+        $this->putJson("/api/tickets/{$id}/approve", ['assigned_mechanic_id' => $this->mechanic->id])->assertOk();
         $sub = MaintenanceTicket::with('subIssues')->find($id)->subIssues->first();
         $base = "/api/tickets/{$id}/sub-issues/{$sub->sub_issue_id}";
         $sent = ['external_vendor' => 'Shop', 'external_reason' => 'Parts or service only available from an authorized shop', 'external_work_scope' => 'x'];

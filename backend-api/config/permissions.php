@@ -152,15 +152,12 @@ return [
     // empty grant, not deleted, so the POST /tickets endpoint it gates
     // (TicketController::createTicket) stays documented as intentionally
     // unreachable rather than looking like an oversight.
-    'ticket.create' => [],
     'ticket.propose' => ['Custodian'],
     'ticket.approve' => ['Admin'],
     'ticket.decline' => ['Admin'],
     'ticket.request_corrections' => ['Admin'],
     'ticket.resubmit' => ['Custodian'],
-    'ticket.inspect' => [],
     'ticket.reassign_custodian' => ['Admin'],
-    'ticket.close' => [],
     'ticket.cancel' => ['Admin'],
     'ticket.uncancel' => ['Admin'],
     'ticket.delete' => ['Admin'],
@@ -172,8 +169,6 @@ return [
     // Sub-issues
     // Only Admin may change an active ticket's sub-issues; Custodians propose and verify.
     'subissue.manage' => ['Admin'],
-    'subissue.assign_mechanic' => [],
-    'subissue.reassign_mechanic' => [],
     'subissue.log_repair' => ['Maintenance Personnel'],
     // Dispatching / receiving / writing up an EXTERNAL-shop repair. The ticket's
     // Custodian logs the vehicle going out to the shop, receives it back, then
@@ -188,10 +183,6 @@ return [
     // verification fallback; removed. Verification is a Custodian-only
     // action now. An unavailable Custodian is handled by reassigning the
     // ticket (ticket.reassign_custodian), not by Admin standing in.
-    'subissue.verify' => [],
-    'subissue.confirm' => [],
-    'subissue.reopen_confirmed' => ['Admin'],
-    'subissue.defer' => [],
 
     // Shared dropdown catalogs.
     // Operational users manage the shared issue and repair catalogs inline.

@@ -17043,3 +17043,39 @@ html .smart-form.ticket-create-form > .veh-card.ticket-open-reports { grid-colum
 
 /* Indent wins over every theme/nav padding rule. */
 html .sidebar:not(.collapsed) .module-nav button.module-nav-sub { padding-left: 44px !important; }
+
+/* Repair Tickets filter: the status checkboxes sit in one compact wrapping row with the Filter button beside them. */
+.ticket-summary-filters .ticket-filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ticket-summary-filters .ticket-filter-controls .issue-filter-status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  gap: 6px;
+}
+.ticket-summary-filters .ticket-filter-controls .issue-filter-status-chip {
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 5px 11px;
+  font-size: 0.78rem;
+}
+.ticket-summary-filters .ticket-filter-controls > .filter-apply-btn {
+  flex: 0 0 auto;
+  grid-column: auto;
+  min-height: 34px;
+  padding: 0 22px;
+}
+
+/* Record Repair Work: the tested confirmation and the test notes use the full width; Submit and Cancel sit
+   side by side underneath; "No repair needed" comes last. */
+.lr-side-actions.lr-main-actions > .lr-test-confirm,
+.lr-side-actions.lr-main-actions > .lr-test-notes,
+.lr-side-actions.lr-main-actions > .lr-no-repair { flex: 1 0 100%; }
+.lr-side-actions.lr-main-actions > .lr-no-repair { order: 5; align-items: flex-start; }
+.lr-side-actions.lr-main-actions .lr-test-notes .lr-textarea { width: 100%; box-sizing: border-box; }
+.lr-side-actions.lr-main-actions .lr-test-confirm > span { text-transform: none; letter-spacing: normal; font-size: 0.9rem; font-weight: 600; color: var(--text-strong, #0f172a); }
+.lr-side-actions.lr-main-actions .lr-test-confirm input { margin-top: 3px; }

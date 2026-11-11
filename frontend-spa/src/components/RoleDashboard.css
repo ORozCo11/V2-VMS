@@ -45,7 +45,9 @@ html .role-dashboard .focus-branded-heading select { background: #fff; border-co
 .focus-tasks span:not(.focus-task-mark) { font-size: 13px; color: var(--text-muted, #64748b); }
 .focus-tasks small { color: var(--text-muted, #64748b); font-size: 12px; }
 .focus-tasks button { flex-shrink: 0; min-height: 36px; }
-.focus-task-mark.is-urgent { background: #fff1f2; color: #b91c1c; }
+/* One colour per kind of item, never by priority. */
+.focus-task-mark.is-kind-schedule { background: #f5f3ff; color: #6d28d9; }
+.focus-task-mark.is-kind-readiness { background: #ecfdf5; color: #047857; }
 .focus-empty { margin: 0; padding: 24px 0; color: var(--text-muted, #64748b); font-size: 14px; }
 .focus-card .focus-more { margin-top: 12px; }
 .focus-donut { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 20px; }

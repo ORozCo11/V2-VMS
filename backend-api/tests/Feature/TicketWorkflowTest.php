@@ -240,9 +240,8 @@ class TicketWorkflowTest extends TestCase
     #[Test]
     public function nobody_can_create_a_ticket_directly_any_more(): void
     {
-        // ticket.create has no role (config/permissions.php) — every ticket
-        // must now originate as a Custodian's proposal (see the propose/
-        // approve tests below) that an Admin reviews and approves.
+        // The direct-create route is gone — every ticket originates as a Custodian's
+        // proposal (see the propose/approve tests below) that an Admin reviews and approves.
         $vehicle = $this->vehicle();
         $payload = [
             'vehicle_id' => $vehicle->vehicle_id,
@@ -253,38 +252,33 @@ class TicketWorkflowTest extends TestCase
         ];
 
         Sanctum::actingAs($this->custodian, ['*']);
-        $this->postJson('/api/tickets', $payload)->assertForbidden();
+        $this->assertContains($this->postJson('/api/tickets', $payload)->getStatusCode(), [404, 405]);
 
         Sanctum::actingAs($this->admin, ['*']);
-        $this->postJson('/api/tickets', $payload)->assertForbidden();
+        $this->assertContains($this->postJson('/api/tickets', $payload)->getStatusCode(), [404, 405]);
     }
 
     #[Test]
     public function nobody_can_submit_an_inspection_any_more(): void
     {
-        // ticket.inspect has no role — the inspection phase (Open ->
-        // submitInspection() -> Active) is gone entirely. A proposal always
-        // states what's wrong and how it'll be fixed up front; there is no
-        // "Custodian diagnoses first" step left to submit.
+        // The inspection route is gone — the inspection phase (Open -> Active) no longer exists.
+        // A proposal always states what's wrong and how it'll be fixed up front.
         $vehicle = $this->vehicle();
         $ticket = $this->createTicket($vehicle);
 
         foreach ([$this->custodian, $this->admin, $this->mechanic] as $user) {
             Sanctum::actingAs($user, ['*']);
-            $this->putJson("/api/tickets/{$ticket->ticket_id}/inspect", [
+            $this->assertContains($this->putJson("/api/tickets/{$ticket->ticket_id}/inspect", [
                 'inspection_result' => 'No Issues',
-            ])->assertForbidden();
+            ])->getStatusCode(), [404, 405]);
         }
     }
 
     #[Test]
     public function the_old_per_sub_issue_verify_confirm_close_and_defer_endpoints_are_now_unreachable_by_anyone(): void
     {
-        // subissue.verify, subissue.confirm, ticket.close and subissue.defer
-        // are all empty ability grants now — requireAbility() 403s literally
-        // everyone, including Admin, the role that used to hold several of
-        // these. The ticket-level replacements (submit-for-verification,
-        // verify) are exercised by their own dedicated tests below.
+        // The per-sub-issue verify, confirm and defer routes and the Admin close route were removed.
+        // The ticket-level replacements (submit-for-verification, verify) have their own tests below.
         $vehicle = $this->vehicle();
         $ticket = $this->activeTicket($vehicle, ['Low coolant level']);
         $subIssue = $ticket->subIssues->first();
@@ -292,31 +286,29 @@ class TicketWorkflowTest extends TestCase
         foreach ([$this->admin, $this->custodian, $this->mechanic] as $user) {
             Sanctum::actingAs($user, ['*']);
 
-            $this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/verify", [
+            $this->assertContains($this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/verify", [
                 'verification_verdict' => 'Approved',
                 'test_attested'        => true,
                 'functional_test'      => [['item' => 'Engine starts', 'passed' => true]],
-            ])->assertForbidden();
+            ])->getStatusCode(), [404, 405]);
 
-            $this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/confirm", [
+            $this->assertContains($this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/confirm", [
                 'confirmation_verdict' => 'Confirmed',
-            ])->assertForbidden();
+            ])->getStatusCode(), [404, 405]);
 
-            $this->putJson("/api/tickets/{$ticket->ticket_id}/close", [])->assertForbidden();
+            $this->assertContains($this->putJson("/api/tickets/{$ticket->ticket_id}/close", [])->getStatusCode(), [404, 405]);
 
-            $this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/defer", [
+            $this->assertContains($this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/defer", [
                 'deferred_reason' => 'trying to defer',
-            ])->assertForbidden();
+            ])->getStatusCode(), [404, 405]);
         }
     }
 
     #[Test]
     public function nobody_can_assign_or_reassign_a_mechanic_on_an_individual_sub_issue_any_more(): void
     {
-        // subissue.assign_mechanic / subissue.reassign_mechanic are both
-        // empty ability grants now — the whole ticket gets ONE mechanic via
-        // approveTicket() at approval time, changeable only ticket-wide via
-        // assignTicketMechanic() (see the dedicated tests below).
+        // The per-sub-issue assign and reassign routes were removed — mechanics are chosen in
+        // approveTicket() and changed only through assignTicketMechanic() (see the tests below).
         $vehicle = $this->vehicle();
         $ticket = $this->activeTicket($vehicle, ['Low coolant level']);
         $subIssue = $ticket->subIssues->first();
@@ -324,15 +316,15 @@ class TicketWorkflowTest extends TestCase
         foreach ([$this->admin, $this->custodian, $this->mechanic] as $user) {
             Sanctum::actingAs($user, ['*']);
 
-            $this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/assign-mechanic", [
+            $this->assertContains($this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/assign-mechanic", [
                 'assigned_mechanic_id' => $this->mechanic2->id,
                 'maintenance_type' => 'Engine Repair',
-            ])->assertForbidden();
+            ])->getStatusCode(), [404, 405]);
 
-            $this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/reassign-mechanic", [
+            $this->assertContains($this->putJson("/api/tickets/{$ticket->ticket_id}/sub-issues/{$subIssue->sub_issue_id}/reassign-mechanic", [
                 'assigned_mechanic_id' => $this->mechanic2->id,
                 'reassign_reason' => 'x',
-            ])->assertForbidden();
+            ])->getStatusCode(), [404, 405]);
         }
     }
 
