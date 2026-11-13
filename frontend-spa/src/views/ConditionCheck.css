@@ -3,9 +3,10 @@ html .condition-check-layout {
   --condition-border: var(--border-subtle, #dce5f1);
   --condition-surface: var(--surface, #fff);
   --condition-muted: var(--text-muted, #64748b);
-  grid-template-columns: 240px minmax(0, 1fr);
-  align-items: start;
-  gap: 24px;
+  /* The vehicle column is about 28% of the page and runs the full height of the form beside it. */
+  grid-template-columns: minmax(280px, 28%) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 28px;
   min-height: 0;
 }
 
@@ -16,7 +17,7 @@ html .panel:has(> .condition-check-layout) {
   box-shadow: none;
 }
 
-html .condition-check-layout .form-context-side { gap: 18px; }
+html .condition-check-layout .form-context-side { display: flex; flex-direction: column; gap: 18px; min-height: 100%; }
 html .condition-check-layout .form-context-side > .veh-card {
   margin: 0;
   border: 1px solid var(--condition-border);
@@ -34,8 +35,7 @@ html .condition-check-layout .veh-card-head h4 { font-size: .9rem; }
 html .condition-check-layout .form-context-photo { padding: 12px 12px 0; }
 html .condition-check-layout .form-context-photo img {
   height: auto;
-  aspect-ratio: 16 / 9;
-  max-height: 120px;
+  aspect-ratio: 16 / 10;
   object-fit: cover;
   border: 0;
   border-radius: 9px;
@@ -50,8 +50,8 @@ html .condition-check-layout .form-context-side .veh-kv {
 html .condition-check-layout .veh-kv > div { min-width: 0; }
 html .condition-check-layout .veh-kv dt { font-size: .65rem; color: var(--condition-muted); margin-bottom: 5px; }
 html .condition-check-layout .veh-kv dd { margin: 0; font-size: .8rem; overflow-wrap: anywhere; }
-html .condition-check-layout .form-context-map-inline { flex: none; }
-html .condition-check-layout .form-context-map-inline .veh-map-wrap { flex: none; min-height: 0; height: 150px; overflow: hidden; }
+html .condition-check-layout .form-context-map-inline { flex: 1 1 auto; display: flex; flex-direction: column; }
+html .condition-check-layout .form-context-map-inline .veh-map-wrap { flex: 1 1 auto; min-height: 200px; height: auto; overflow: hidden; }
 html .condition-check-layout .leaflet-container { font-size: 10px; }
 html .condition-check-layout .leaflet-control-attribution { max-width: 100%; font-size: 9px; line-height: 1.3; white-space: normal; box-sizing: border-box; }
 html .condition-check-layout .form-context-empty { min-height: 250px; flex: none; }

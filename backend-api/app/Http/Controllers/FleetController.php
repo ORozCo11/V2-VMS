@@ -1537,9 +1537,13 @@ class FleetController extends Controller
             'vehicle_id' => ['required', 'exists:vehicles,vehicle_id'],
             'condition_result' => ['required', Rule::in(['Good', 'Needs Repair'])],
             'observations' => ['nullable', 'string'],
+            // Sent after the Custodian agrees to close reports left over from a withdrawn repair (see below).
+            'confirm_clear_reports' => ['sometimes', 'boolean'],
         ]);
+        $confirmClear = $request->boolean('confirm_clear_reports');
+        $checkData = \Illuminate\Support\Arr::only($data, ['vehicle_id', 'condition_result', 'observations']);
 
-        $condition = DB::transaction(function () use ($data, $request) {
+        $condition = DB::transaction(function () use ($data, $checkData, $confirmClear, $request) {
             $vehicle = Vehicle::whereKey($data['vehicle_id'])->lockForUpdate()->firstOrFail();
             abort_if(
                 MaintenanceTicket::where('vehicle_id', $vehicle->vehicle_id)
@@ -1547,7 +1551,25 @@ class FleetController extends Controller
                 422,
                 'This vehicle has an open maintenance ticket. Close the ticket before recording another condition check.'
             );
-            $condition = VehicleConditionCheck::create($data + ['checked_by' => $request->user()->id]);
+            // A declined, cancelled or deleted repair proposal leaves its issue report open, and an open report keeps the
+            // vehicle Needs Repair and blocks its readiness. No live ticket exists at this point (checked above), so a
+            // report still open here belongs to a withdrawn repair. A Good check from the Custodian, who has looked at the
+            // vehicle, is how it is cleared, after they confirm.
+            $leftoverReports = collect();
+            if ($data['condition_result'] === 'Good' && !in_array($vehicle->status, ['Inactive', 'Decommissioned'], true)) {
+                $leftoverReports = VehicleIssueReport::where('vehicle_id', $vehicle->vehicle_id)
+                    ->whereIn('status', ['Pending', 'Under Review', 'In Maintenance'])->lockForUpdate()->get();
+                if ($leftoverReports->isNotEmpty() && ! $confirmClear) {
+                    $count = $leftoverReports->count();
+                    throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
+                        'message' => "{$vehicle->vehicle_name} still has {$count} open report" . ($count === 1 ? '' : 's') . ' from a repair that was declined, cancelled or removed. Recording Good will close ' . ($count === 1 ? 'it' : 'them') . ' and clear the Needs Repair flag. Continue?',
+                        'requires_confirmation' => true,
+                        'open_reports' => $leftoverReports->map(fn ($r) => ['issue_report_id' => $r->issue_report_id, 'issue_type' => $r->issue_type, 'status' => $r->status])->values(),
+                    ], 409));
+                }
+            }
+
+            $condition = VehicleConditionCheck::create($checkData + ['checked_by' => $request->user()->id]);
 
             // A vehicle already retired (Inactive/Decommissioned) must stay
             // that way — filing a condition check against it should never
@@ -1561,6 +1583,18 @@ class FleetController extends Controller
                     'condition' => $data['condition_result'],
                     'status' => $vehicleStatus,
                 ]);
+            }
+
+            foreach ($leftoverReports as $report) {
+                $report->update([
+                    'status' => 'Resolved',
+                    'remarks' => "Closed by {$request->user()->name}: a Good condition check was recorded (check #{$condition->condition_check_id}).",
+                ]);
+                $this->history($vehicle, 'Issue Report Closed', "Report #{$report->issue_report_id} was closed by a Good condition check.", 'vehicle_issue_reports', $report->issue_report_id, $request);
+            }
+            if ($leftoverReports->isNotEmpty()) {
+                // Nothing else is holding the vehicle, so release it from maintenance.
+                \App\Services\VehicleOperationalState::refresh($vehicle);
             }
 
             $this->history($vehicle, 'Condition Checked', "{$vehicle->vehicle_name} condition was marked {$data['condition_result']}.", 'vehicle_condition_checks', $condition->condition_check_id, $request);

@@ -17079,3 +17079,21 @@ html .sidebar:not(.collapsed) .module-nav button.module-nav-sub { padding-left: 
 .lr-side-actions.lr-main-actions .lr-test-notes .lr-textarea { width: 100%; box-sizing: border-box; }
 .lr-side-actions.lr-main-actions .lr-test-confirm > span { text-transform: none; letter-spacing: normal; font-size: 0.9rem; font-weight: 600; color: var(--text-strong, #0f172a); }
 .lr-side-actions.lr-main-actions .lr-test-confirm input { margin-top: 3px; }
+
+/* Table rows were too short: a little more room above and below the text and slightly larger text.
+   Compact tables (.is-compact) keep their tighter rows. */
+html[data-theme] .table-shell:not(.is-compact) tbody td {
+  padding: 13px 12px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+/* A creatable dropdown's text box always fills its field, so the arrow sits inside the box (on some forms the
+   box was only half as wide as the field and the arrow floated outside it). */
+.creatable-select > input {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding-right: 38px;
+  text-overflow: ellipsis;
+}

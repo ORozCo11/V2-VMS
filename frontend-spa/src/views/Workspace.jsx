@@ -1720,6 +1720,25 @@ function Workspace() {
         });
         return false;
       }
+      // A Good condition check on a vehicle that still has reports left over from a declined, cancelled or deleted
+      // repair: say so, and send the same check again once the Custodian agrees to close them.
+      if (moduleKey === 'conditions' && error.response?.status === 409 && error.response?.data?.requires_confirmation) {
+        setConfirmDialog({
+          title: 'Close the open report?',
+          message: error.response.data.message,
+          confirmLabel: 'Record Good and close it',
+          variant: 'primary',
+          onConfirm: async () => {
+            try {
+              await sendPayload(request.method, request.path, { ...finalPayload, confirm_clear_reports: true });
+              await finishFormPageSuccess(moduleKey, existing, request.success);
+            } catch (confirmError) {
+              showError(confirmError, setNotice);
+            }
+          },
+        });
+        return false;
+      }
       showError(error, setNotice);
       return false;
     }
@@ -2537,12 +2556,10 @@ function Workspace() {
                     className={`${isActive ? 'active' : ''}${isVehicleSub || isMaintSub ? ' module-nav-sub' : ''}`}
                     key={key}
                     onClick={() => {
-                      if (key === 'vehicles') { if (breadcrumbModule === 'vehicles') setVehicleNavOpen((open) => !open); else setVehicleNavOpen(true); }
-                      // Clicking the folder while inside it folds it; from elsewhere it opens and lands on Repair Tickets.
-                      if (key === 'maintenanceGroup') {
-                        if (MAINTENANCE_SUBPAGES.includes(breadcrumbModule)) { setMaintNavOpen((open) => !open); return; }
-                        setMaintNavOpen(true);
-                      }
+                      // Clicking a group's own item never folds it (that only hid the sub-pages when someone clicked
+                      // View Vehicles to get back to the list). Only the little arrow folds a group.
+                      if (key === 'vehicles') setVehicleNavOpen(true);
+                      if (key === 'maintenanceGroup') setMaintNavOpen(true);
                       goToModule(key);
                     }}
                     aria-label={badgeCount > 0 ? `${label} (${badgeCount})` : label}
@@ -7705,19 +7722,31 @@ function vehicleColumns(user, onEdit, deleteRecord, restoreRecord, filterStatus,
   // column even though they can't edit/restore/archive vehicles.
   const canCheckReadiness = canDo(user, 'vehicle.readiness_check') && !!onReadinessCheck;
   if (view === 'notready') {
-    // Not Ready is only a look-up: the one action is opening the repair ticket that is holding the vehicle.
+    // Not Ready is a look-up with two actions: open the repair ticket holding the vehicle, and (for the
+    // Custodian) record the Readiness Check. The check button is greyed out, with the reason, while the
+    // vehicle cannot be confirmed yet (for example an open ticket).
     columns.push({
       key: 'action',
       label: 'Action',
       locked: true,
       className: 'cell-center',
-      render: (row) => (row.open_ticket_id && onViewTicket ? (
-        <div className="row-actions">
-          <button className="btn-view-action icon-btn" onClick={() => onViewTicket({ ticket_id: row.open_ticket_id })} type="button" title={`View Ticket #${row.open_ticket_number ?? row.open_ticket_id}`} aria-label={`View Ticket #${row.open_ticket_number ?? row.open_ticket_id}`}><Icon name="ticket" size={14} /></button>
-        </div>
-      ) : null),
+      render: (row) => {
+        const hasTicket = Boolean(row.open_ticket_id && onViewTicket);
+        const showCheck = canCheckReadiness && !['Inactive', 'Decommissioned'].includes(row.status);
+        if (!hasTicket && !showCheck) return null;
+        return (
+          <div className="row-actions">
+            {hasTicket ? (
+              <button className="btn-view-action icon-btn" onClick={() => onViewTicket({ ticket_id: row.open_ticket_id })} type="button" title={`View Ticket #${row.open_ticket_number ?? row.open_ticket_id}`} aria-label={`View Ticket #${row.open_ticket_number ?? row.open_ticket_id}`}><Icon name="ticket" size={14} /></button>
+            ) : (canCheckReadiness ? <span className="icon-btn-spacer" aria-hidden="true" /> : null)}
+            {showCheck && (
+              <button className={`icon-btn ${row.can_confirm_readiness === false ? 'readiness-check-blocked' : 'btn-confirm-action'}`} onClick={() => onReadinessCheck(row)} type="button" title={row.readiness_block_reason || 'Record Readiness Check'} aria-label="Record Readiness Check"><Icon name={row.can_confirm_readiness === false ? 'alert' : 'checkCircle'} size={14} /></button>
+            )}
+          </div>
+        );
+      },
     });
-  } else if (view !== 'ready' && (canEditVehicle || canRestoreVehicle || canArchiveVehicle || canCheckReadiness)) {
+  } else if (view !== 'ready' && (canEditVehicle || canRestoreVehicle || canArchiveVehicle || !!onViewTicket)) {
     // (Ready to Respond has no Action column: it is only a look-up, like Not Ready.)
     columns.push({
       key: 'action',
@@ -7735,13 +7764,6 @@ function vehicleColumns(user, onEdit, deleteRecord, restoreRecord, filterStatus,
             <button className="btn-view-action icon-btn" onClick={() => onViewTicket({ ticket_id: row.open_ticket_id })} type="button" title={`View Ticket #${row.open_ticket_number ?? row.open_ticket_id}`} aria-label={`View Ticket #${row.open_ticket_number ?? row.open_ticket_id}`}><Icon name="ticket" size={14} /></button>
           ) : (
             <span className="icon-btn-spacer" aria-hidden="true" />
-          )}
-          {canCheckReadiness && (
-            (row.status === 'Inactive' || row.status === 'Decommissioned') ? (
-              <span className="icon-btn-spacer" aria-hidden="true" />
-            ) : (
-              <button className={`icon-btn ${row.can_confirm_readiness === false ? 'readiness-check-blocked' : 'btn-confirm-action'}`} onClick={() => onReadinessCheck(row)} type="button" title={row.readiness_block_reason || 'Record Readiness Check'} aria-label="Record Readiness Check"><Icon name={row.can_confirm_readiness === false ? 'alert' : 'checkCircle'} size={14} /></button>
-            )
           )}
           {(row.status === 'Inactive' || row.status === 'Decommissioned') ? (
             canRestoreVehicle && (

@@ -85,3 +85,13 @@ A Custodian who did repair work on the ticket cannot verify it; the Admin reassi
 ## 6. Removed on 12 November 2026 (they could not be reached by any role)
 
 Direct ticket creation by the Admin, the Custodian inspection step and the "Open" status, per-item mechanic assign and reassign, per-item verify and confirm, defer, the Admin "Close" button and "Unconfirm". The statuses "For Confirmation" and "Deferred" are no longer used. Closing is done only by the Custodian's verification.
+
+## 7. Clearing a vehicle after a withdrawn proposal (12 November 2026)
+
+```
+Proposal declined / cancelled / deleted  ->  its issue report stays open  ->  vehicle stays Needs Repair
+Custodian records a Condition Check = Good
+   -> the system asks: "Close the open report?"  (Cancel = nothing changes)
+   -> Confirm: report closed, Needs Repair cleared, vehicle released, a Readiness Check can now be recorded
+```
+Only the Custodian can do this; Admin and mechanic cannot record condition checks. A vehicle with a live (pending or active) ticket still cannot take a new check.

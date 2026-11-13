@@ -1231,7 +1231,7 @@ class TicketController extends Controller
             $ticket->update(['status' => 'Declined', 'decline_reason' => $data['decline_reason'], 'correction_reason' => null, 'correction_requested_at' => null]);
             $this->resetLinkedIssueReports($ticket, 'Pending');
             $this->log($request, 'Decline Ticket', "Ticket #{$ticket->display_number} declined. Reason: {$data['decline_reason']}", $ticket->ticket_id);
-            $this->notifyUser($ticket->assigned_custodian_id, 'Ticket Proposal Declined', "Ticket #{$ticket->display_number} was declined. Reason: {$data['decline_reason']}. This does not certify that the reported defect is repaired. The vehicle stays marked Needs Repair until you record a new Condition Check.", 'ticket_declined', $ticket->ticket_id);
+            $this->notifyUser($ticket->assigned_custodian_id, 'Ticket Proposal Declined', "Ticket #{$ticket->display_number} was declined. Reason: {$data['decline_reason']}. This does not certify that the reported defect is repaired. The vehicle stays marked Needs Repair. Record a new Condition Check with the result Good to clear it.", 'ticket_declined', $ticket->ticket_id);
             return response()->json($ticket->fresh($this->eagerLoads()));
         });
     }
