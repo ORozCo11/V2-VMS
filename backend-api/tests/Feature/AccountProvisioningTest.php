@@ -31,20 +31,21 @@ class AccountProvisioningTest extends TestCase
         $this->postJson('/api/register', ['name' => 'X', 'email' => 'x@example.com'])->assertNotFound();
     }
 
-    public function test_the_super_admin_creates_the_barangay_admin_and_the_password_is_emailed(): void
+    public function test_the_super_admin_invites_the_barangay_admin_and_no_password_is_emailed(): void
     {
         Mail::fake();
         Sanctum::actingAs($this->superAdmin, ['*']);
 
         $response = $this->postJson("/api/superadmin/barangays/{$this->barangay->id}/admin", ['name' => 'Ana Admin', 'email' => 'ana@example.com'])
-            ->assertCreated()->assertJsonPath('email_sent', true);
+            ->assertCreated()->assertJsonPath('email_sent', true)->assertJsonPath('account_status', 'pending_invitation')
+            ->assertJsonMissingPath('temporary_password');
 
         $admin = User::where('email', 'ana@example.com')->firstOrFail();
         $this->assertTrue($admin->hasRole('Admin'));
         $this->assertSame($this->barangay->id, $admin->barangay_id);
-        $this->assertTrue($admin->must_change_password);
-        $this->assertTrue(Hash::check($response->json('temporary_password'), $admin->password));
-        Mail::assertSent(AccountMail::class, fn ($mail) => $mail->hasTo('ana@example.com') && $mail->template === 'credentials');
+        $this->assertNull($admin->activated_at);
+        $this->assertFalse($admin->is_active);
+        Mail::assertSent(AccountMail::class, fn ($mail) => $mail->hasTo('ana@example.com') && $mail->template === 'invitation');
     }
 
     public function test_a_barangay_can_only_have_one_admin(): void
@@ -61,23 +62,6 @@ class AccountProvisioningTest extends TestCase
         $this->postJson("/api/superadmin/barangays/{$this->barangay->id}/admin", ['name' => 'Rogue', 'email' => 'rogue@example.com'])->assertForbidden();
     }
 
-    public function test_an_expired_temporary_password_cannot_sign_in_until_a_new_one_is_sent(): void
-    {
-        Mail::fake();
-        Sanctum::actingAs($this->superAdmin, ['*']);
-        $plain = $this->postJson("/api/superadmin/barangays/{$this->barangay->id}/admin", ['name' => 'Ana Admin', 'email' => 'ana@example.com'])->json('temporary_password');
-        $admin = User::where('email', 'ana@example.com')->firstOrFail();
-
-        $this->postJson('/api/login', ['email' => 'ana@example.com', 'password' => $plain])->assertOk();
-
-        $admin->update(['temp_password_expires_at' => now()->subMinute()]);
-        $this->postJson('/api/login', ['email' => 'ana@example.com', 'password' => $plain])
-            ->assertForbidden()->assertJsonPath('code', 'temporary_password_expired');
-
-        $fresh = $this->postJson("/api/superadmin/users/{$admin->id}/resend-credentials")->assertOk()->json('temporary_password');
-        $this->postJson('/api/login', ['email' => 'ana@example.com', 'password' => $fresh])->assertOk();
-    }
-
     public function test_an_admin_cannot_reset_an_admin_but_can_reset_their_own_staff(): void
     {
         Mail::fake();
@@ -85,15 +69,15 @@ class AccountProvisioningTest extends TestCase
         $staff = User::factory()->create(['role' => 'Custodian', 'roles' => ['Custodian'], 'barangay_id' => $this->barangay->id]);
         Sanctum::actingAs($admin, ['*']);
         $this->postJson("/api/users/{$staff->id}/resend-credentials")->assertOk();
-        $this->assertTrue($staff->fresh()->must_change_password);
+        $this->assertSame(1, \App\Models\UserInvitation::where('user_id', $staff->id)->where('purpose', 'reset')->count());
         $this->postJson("/api/users/{$admin->id}/resend-credentials")->assertUnprocessable();
     }
 
-    public function test_a_failed_email_still_returns_the_password_so_it_can_be_handed_over(): void
+    public function test_a_failed_email_is_reported_as_not_sent(): void
     {
         Mail::shouldReceive('to')->andThrow(new \RuntimeException('smtp down'));
         Sanctum::actingAs($this->superAdmin, ['*']);
         $this->postJson("/api/superadmin/barangays/{$this->barangay->id}/admin", ['name' => 'Ana Admin', 'email' => 'ana@example.com'])
-            ->assertCreated()->assertJsonPath('email_sent', false)->assertJsonStructure(['temporary_password']);
+            ->assertCreated()->assertJsonPath('email_sent', false)->assertJsonMissingPath('temporary_password');
     }
 }

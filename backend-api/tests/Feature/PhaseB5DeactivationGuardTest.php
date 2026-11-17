@@ -172,7 +172,8 @@ class PhaseB5DeactivationGuardTest extends TestCase
 
         $superAdmin = User::factory()->create(['role' => 'Super Admin', 'roles' => ['Super Admin']]);
         Sanctum::actingAs($superAdmin, ['*']);
-        $this->putJson("/api/superadmin/users/{$this->custodian->id}/deactivate")->assertStatus(422);
+        // A Super Admin manages Barangay Admins only; staff accounts belong to the barangay Admin.
+        $this->putJson("/api/superadmin/users/{$this->custodian->id}/deactivate")->assertNotFound();
         $this->assertTrue($this->custodian->fresh()->is_active);
     }
 

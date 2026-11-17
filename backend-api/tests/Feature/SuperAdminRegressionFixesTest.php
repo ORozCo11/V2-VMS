@@ -126,7 +126,7 @@ class SuperAdminRegressionFixesTest extends TestCase
         $mechanic = $this->user(['Maintenance Personnel']);
         VehicleMaintenanceSchedule::create(['vehicle_id' => $this->vehicle()->vehicle_id, 'maintenance_type' => 'Oil Change', 'scheduled_date' => now()->addWeek()->toDateString(), 'created_by' => $mechanic->id, 'assigned_to' => $mechanic->id, 'status' => 'Pending Approval']);
         $this->putJson("/api/superadmin/users/{$mechanic->id}/role", ['role' => 'Custodian'])->assertUnprocessable();
-        $this->putJson("/api/superadmin/users/{$mechanic->id}/deactivate")->assertUnprocessable();
+        $this->putJson("/api/superadmin/users/{$mechanic->id}/deactivate")->assertNotFound(); // staff accounts are the barangay Admin's, not the Super Admin's
         $this->assertSame(['Maintenance Personnel'], $mechanic->fresh()->roles);
     }
 

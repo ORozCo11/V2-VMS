@@ -5,6 +5,7 @@ import { lazy, Suspense, useContext } from 'react';
 import ManagedFileLinks from './components/ManagedFileLinks';
 import { AuthContext } from './context/AuthContextObject';
 import Login from './views/Login';
+const AcceptInvitation = lazy(() => import('./views/AcceptInvitation'));
 const Privacy = lazy(() => import('./views/Privacy'));
 const Terms = lazy(() => import('./views/Terms'));
 const About = lazy(() => import('./views/About'));
@@ -44,6 +45,7 @@ function App() {
         <Suspense fallback={<main className="auth-page" role="status">Loading…</main>}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/accept-invitation" element={<AcceptInvitation />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/about" element={<About />} />

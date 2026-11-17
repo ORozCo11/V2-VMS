@@ -37,6 +37,11 @@ class AuthController extends Controller
             ], 401); // Returns 401 Unauthorized status code
         }
 
+        // Pending accounts get the same answer as a wrong password, so login can't be used to probe who is invited.
+        if ($user->activated_at === null) {
+            return response()->json(['message' => 'Invalid credentials provided. Please check your email or password.'], 401);
+        }
+
         if (!$user->is_active) {
             return response()->json(['message' => 'This account has been deactivated. Contact your administrator.'], 403);
         }

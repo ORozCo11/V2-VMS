@@ -1402,14 +1402,35 @@ function Workspace() {
 
   const resendUserCredentials = (row) => {
     setConfirmDialog({
-      title: 'Send new temporary password',
-      message: `Send ${row.name} a new temporary password by email? Their current password stops working right away.`,
+      title: row.account_status === 'active' ? 'Send password reset' : 'Resend invitation',
+      message: row.account_status === 'active'
+        ? `Email ${row.name} a link to choose a new password? The link works once and expires in 24 hours.`
+        : `Send ${row.name} a new invitation email? Any earlier invitation link stops working.`,
       confirmLabel: 'Send',
       variant: 'primary',
       onConfirm: async () => {
         try {
           const { data } = await api.post(`/users/${row.id}/resend-credentials`);
-          setCredentialsResult({ ...data, name: row.name });
+          setCredentialsResult({ ...data, name: row.name, kind: row.account_status === 'active' ? 'reset' : 'invitation' });
+          await refreshCurrent();
+        } catch (error) {
+          showError(error, setNotice);
+        }
+      },
+    });
+  };
+
+  const revokeUserInvitation = (row) => {
+    setConfirmDialog({
+      title: 'Revoke invitation',
+      message: `Revoke the pending invitation for ${row.name}? The link in their email will stop working.`,
+      confirmLabel: 'Revoke',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.post(`/users/${row.id}/revoke-invitation`);
+          setNotice({ type: 'success', text: 'Invitation revoked.' });
+          await refreshCurrent();
         } catch (error) {
           showError(error, setNotice);
         }
@@ -1682,12 +1703,8 @@ function Workspace() {
       request = moduleRequest(moduleKey, existing, finalPayload);
       const response = await sendPayload(request.method, request.path, finalPayload);
 
-      if (moduleKey === 'users' && !existing && response?.data?.temporary_password) {
-        setCredentialsResult({ name: response.data.name, email: response.data.email, temporary_password: response.data.temporary_password, email_sent: response.data.email_sent });
-      }
-
-      if (moduleKey === 'users' && !existing && response?.data?.temporary_password) {
-        setCredentialsResult({ name: response.data.name, email: response.data.email, temporary_password: response.data.temporary_password, email_sent: response.data.email_sent });
+      if (moduleKey === 'users' && !existing && response?.data && 'email_sent' in response.data) {
+        setCredentialsResult({ name: response.data.name, email: response.data.email, email_sent: response.data.email_sent, kind: 'invitation' });
       }
 
       // Land on the report just filed — with its own [Create Maintenance
@@ -2297,7 +2314,7 @@ function Workspace() {
   const categoryColumnDefs = (() => categoryColumns((row) => navigate(`${roleRoutes[user.role]}/categories/${row.category_id}/edit`), deleteRecord, canDo(user, 'vehicle_type.edit') || canDo(user, 'vehicle_type.delete')))();
   const categoryColumnChooser = useColumnChooser('vms_category_columns_s2', categoryColumnDefs, ['id', 'description']);
 
-  const userColumnDefs = (() => userColumns((row) => navigate(`${roleRoutes[user.role]}/users/${row.id}/edit`), toggleUserActive, user.id, resendUserCredentials))();
+  const userColumnDefs = (() => userColumns((row) => navigate(`${roleRoutes[user.role]}/users/${row.id}/edit`), toggleUserActive, user.id, resendUserCredentials, revokeUserInvitation))();
   const userColumnChooser = useColumnChooser('vms_user_columns_s2', userColumnDefs, ['id', 'phone']);
 
   const locationColumnChooser = useColumnChooser('vms_location_columns_s2', locationTableColumns, ['id', 'plate', 'address_area', 'updated_by', 'time']);
@@ -3340,7 +3357,7 @@ function Workspace() {
     if (activeModule === 'users') {
       return (
         <ModulePanel
-          description="The people who can sign in to your barangay. Add a user and the system emails them a temporary password."
+          description="The people who can sign in to your barangay. Invite a user and the system emails them a link to activate their account and choose a password."
           statCards={<PageChart spec={pageCharts.users} />}
           filterBar={
             <div className="filter-bar-container">
@@ -6859,7 +6876,7 @@ function UserFormPage({ initialValues, isEditing, onBack, onSubmit, submitLabel,
       icon="edit"
       crumbs={['Users', isEditing ? 'Update User' : 'Add User']}
       title={isEditing ? 'Update User' : 'Add User'}
-      description={isEditing ? 'Edit account details, roles, and sign-in settings.' : 'Create an account and choose its role. A temporary password is emailed to the user.'}
+      description={isEditing ? 'Edit account details, roles, and sign-in settings.' : 'Invite a Custodian or Maintenance Personnel. They activate the account from an emailed link.'}
     >
       <form className="fx-form fx-cols fx-cols--user" onSubmit={handleSubmit} noValidate autoComplete="off">
         <div className="fx-main">
@@ -6921,7 +6938,7 @@ function UserFormPage({ initialValues, isEditing, onBack, onSubmit, submitLabel,
           <h3 className="fx-section-title">Password</h3>
           {isEditing
             ? <p className="fx-hint">An Admin cannot change another user's password. Each user changes their own under Profile.</p>
-            : <p className="fx-hint">You do not set a password. The system emails a temporary password to the address above, and the user must choose their own the first time they sign in. It expires after 72 hours.</p>}
+            : <p className="fx-hint">You do not set a password. The system emails an invitation link to the address above. The person activates the account and chooses their own password. The link expires after 24 hours.</p>}
         </aside>
 
         <div className="fx-actions fx-actions--full">
@@ -7965,7 +7982,9 @@ function categoryColumns(onEdit, deleteRecord, canManage = true) {
   return canManage ? columns : columns.filter((column) => column.key !== 'action');
 }
 
-function userColumns(onEdit, onToggleActive, currentUserId, onResend) {
+const USER_STATUS_LABELS = { pending_invitation: 'Pending Invitation', active: 'Active', disabled: 'Disabled', invitation_expired: 'Invitation Expired' };
+
+function userColumns(onEdit, onToggleActive, currentUserId, onResend, onRevoke) {
   return [
     { key: 'id', label: 'ID', locked: true, className: 'cell-center', render: (row) => recordNumber(row, 'id') },
     { key: 'user', label: 'User', locked: true, render: (row) => <UserAvatarName user={row} /> },
@@ -7979,7 +7998,7 @@ function userColumns(onEdit, onToggleActive, currentUserId, onResend) {
         </span>
       );
     } },
-    { key: 'status', label: 'Status', className: 'cell-center', render: (row) => <StatusBadge value={row.is_active ? 'Active' : 'Inactive'} /> },
+    { key: 'status', label: 'Status', className: 'cell-center', render: (row) => <StatusBadge value={USER_STATUS_LABELS[row.account_status] ?? (row.is_active ? 'Active' : 'Disabled')} /> },
     {
       key: 'action',
       label: 'Action',
@@ -7989,9 +8008,12 @@ function userColumns(onEdit, onToggleActive, currentUserId, onResend) {
         <div className="row-actions">
           <button className="btn-edit-action icon-btn" onClick={() => onEdit(row)} type="button" title="Edit" aria-label="Edit"><Icon name="edit" size={14} /></button>
           {row.id !== currentUserId && !(Array.isArray(row.roles) ? row.roles.includes('Admin') : row.role === 'Admin') && (
-            <button className="btn-edit-action icon-btn" onClick={() => onResend(row)} type="button" title="Send new temporary password" aria-label="Send new temporary password"><Icon name="mail" size={14} /></button>
+            <button className="btn-edit-action icon-btn" onClick={() => onResend(row)} type="button" title={row.account_status === 'active' ? 'Send password reset link' : 'Resend invitation'} aria-label={row.account_status === 'active' ? 'Send password reset link' : 'Resend invitation'}><Icon name="mail" size={14} /></button>
           )}
-          {row.id !== currentUserId && (
+          {row.account_status === 'pending_invitation' && (
+            <button className="btn-archive-action icon-btn" onClick={() => onRevoke(row)} type="button" title="Revoke invitation" aria-label="Revoke invitation"><Icon name="archive" size={14} /></button>
+          )}
+          {row.id !== currentUserId && row.account_status !== 'pending_invitation' && row.account_status !== 'invitation_expired' && (
             row.is_active ? (
               <button className="btn-archive-action icon-btn" onClick={() => onToggleActive(row, false)} type="button" title="Deactivate (reversible)" aria-label="Deactivate"><Icon name="archive" size={14} /></button>
             ) : (

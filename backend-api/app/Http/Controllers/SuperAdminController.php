@@ -12,6 +12,7 @@ use App\Models\ActivityLog;
 use App\Models\Barangay;
 use App\Models\ConcernReport;
 use App\Models\User;
+use App\Services\InvitationService;
 use App\Services\BarangayGeography;
 use App\Services\PsgcRegions;
 use Illuminate\Http\Request;
@@ -642,6 +643,9 @@ class SuperAdminController extends Controller
         $this->requireAbility($request, 'user.view_all_platform', 'Only a Super Admin can perform this action.');
 
         $query = User::with(['barangay.city.province', 'roleRows']);
+        if ($city = $request->user()->city_id) {
+            $query->whereHas('barangay', fn ($q) => $q->where('city_id', $city));
+        }
 
         if ($request->filled('q')) {
             // Escape LIKE wildcards so "%" and "_" match literally, same as activityLog().
@@ -657,6 +661,7 @@ class SuperAdminController extends Controller
             'roles' => $u->roles,
             'is_active' => $u->is_active,
             'approved_at' => $u->approved_at,
+            'account_status' => InvitationService::statusOf($u),
             'barangay_id' => $u->barangay_id,
             'barangay_name' => $u->barangay?->name,
             'city_name' => $u->barangay?->city?->name,
@@ -680,12 +685,27 @@ class SuperAdminController extends Controller
     }
 
     /**
-     * Creates the one Admin of a barangay. The system makes the temporary
-     * password and emails it; the Admin replaces it at first sign-in.
+     * An LGU Super Admin (one with a city) only manages barangays of that city. An unassigned legacy Super
+     * Admin (no city on the account) keeps the old platform-wide reach until the account is provisioned.
      */
+    private function requireLguScope(Request $request, ?Barangay $barangay): void
+    {
+        $city = $request->user()->city_id;
+        abort_if($city && (! $barangay || (int) $barangay->city_id !== (int) $city), 404);
+    }
+
+    /** Barangay Admin accounts only: the Super Admin never touches Custodians, mechanics or other Super Admins here. */
+    private function requireManagedAdmin(Request $request, User $user): void
+    {
+        abort_unless($user->role === 'Admin' && $user->barangay_id, 404);
+        $this->requireLguScope($request, $user->barangay);
+    }
+
+    /** Invites the one Admin of a barangay by email. The recipient sets their own password. */
     public function storeAdmin(Request $request, Barangay $barangay)
     {
         $this->requireAbility($request, 'user.create_admin_platform', 'Only a Super Admin can perform this action.');
+        $this->requireLguScope($request, $barangay);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -694,38 +714,87 @@ class SuperAdminController extends Controller
         abort_if(
             User::where('barangay_id', $barangay->id)->havingRole('Admin')->exists(),
             422,
-            "Barangay {$barangay->name} already has an Admin. A barangay can only have one Admin."
+            "Barangay {$barangay->name} already has an Admin (or a pending invitation). A barangay can only have one Admin."
         );
 
-        $admin = User::create($data + [
-            'password' => Hash::make(Str::random(40)),
-            'role' => 'Admin',
-            'roles' => ['Admin'],
-            'barangay_id' => $barangay->id,
-            'city_id' => $barangay->city_id,
-            'is_active' => true,
-            'approved_at' => now(),
-            'can_register_vehicles' => false,
-        ]);
-        $plain = $this->issueTemporaryPassword($admin);
-        $emailed = $this->emailCredentials($admin, $plain, $request->user()->name);
+        [$admin, $emailed] = app(InvitationService::class)->invite(
+            $request->user(), $data['name'], $data['email'], 'Admin', $barangay->id, $barangay->city_id,
+            array_filter(['phone' => $data['phone'] ?? null], fn ($v) => $v !== null),
+        );
         $this->markProvisioned($barangay);
-        $this->log($request, 'Add', "Created the Admin {$admin->name} ({$admin->email}) for barangay {$barangay->name}.");
 
-        return response()->json(['id' => $admin->id, 'name' => $admin->name, 'email' => $admin->email, 'temporary_password' => $plain, 'email_sent' => $emailed], 201);
+        return response()->json(['id' => $admin->id, 'name' => $admin->name, 'email' => $admin->email, 'email_sent' => $emailed, 'account_status' => InvitationService::statusOf($admin)], 201);
     }
 
-    /** New emailed temporary password for any account (lost or expired credentials). */
+    /** Barangay-first directory for the Users page: per barangay, Admin counts by status. */
+    public function barangayDirectory(Request $request)
+    {
+        $this->requireAbility($request, 'user.view_all_platform', 'Only a Super Admin can perform this action.');
+        $city = $request->user()->city_id;
+
+        return Barangay::with('city.province')->registered()
+            ->when($city, fn ($q) => $q->where('city_id', $city))
+            ->orderBy('name')->get()
+            ->map(function ($b) {
+                $admins = User::where('barangay_id', $b->id)->where('role', 'Admin')->get()->map(fn ($u) => InvitationService::statusOf($u));
+
+                return [
+                    'id' => $b->id, 'name' => $b->name, 'city_name' => $b->city?->name, 'province_name' => $b->city?->province?->name,
+                    'admin_count' => $admins->count(),
+                    'active_count' => $admins->filter(fn ($s) => $s === 'active')->count(),
+                    'pending_count' => $admins->filter(fn ($s) => $s === 'pending_invitation')->count(),
+                    'expired_count' => $admins->filter(fn ($s) => $s === 'invitation_expired')->count(),
+                    'disabled_count' => $admins->filter(fn ($s) => $s === 'disabled')->count(),
+                ];
+            })->values();
+    }
+
+    /** The Admin accounts of one barangay, with status. */
+    public function barangayAdmins(Request $request, Barangay $barangay)
+    {
+        $this->requireAbility($request, 'user.view_all_platform', 'Only a Super Admin can perform this action.');
+        $this->requireLguScope($request, $barangay);
+
+        return User::with('roleRows')->where('barangay_id', $barangay->id)->where('role', 'Admin')->orderBy('name')->get()
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'role' => $u->role, 'is_active' => $u->is_active,
+                'activated_at' => $u->activated_at, 'account_status' => InvitationService::statusOf($u)]);
+    }
+
+    /** New invitation (pending/expired Admin) or password-reset link (active Admin). */
     public function resendCredentials(Request $request, User $user)
     {
         $this->requireAbility($request, 'user.create_admin_platform', 'Only a Super Admin can perform this action.');
         abort_if($user->id === $request->user()->id, 422, 'Use Change Password for your own account.');
+        $this->requireManagedAdmin($request, $user);
 
-        $plain = $this->issueTemporaryPassword($user);
-        $emailed = $this->emailCredentials($user, $plain, $request->user()->name);
-        $this->log($request, 'Edit', "Sent new temporary credentials to {$user->name} ({$user->email}).");
+        $pending = $user->activated_at === null;
+        $emailed = app(InvitationService::class)->issue($user, $request->user(), $pending ? 'invite' : 'reset');
+        $this->log($request, 'Edit', ($pending ? 'Resent the invitation to ' : 'Sent a password-reset link to ') . "{$user->name} ({$user->email}).");
 
-        return response()->json(['temporary_password' => $plain, 'email_sent' => $emailed, 'email' => $user->email]);
+        return response()->json(['email_sent' => $emailed, 'email' => $user->email, 'account_status' => InvitationService::statusOf($user->fresh())]);
+    }
+
+    public function revokeInvitation(Request $request, User $user)
+    {
+        $this->requireAbility($request, 'user.create_admin_platform', 'Only a Super Admin can perform this action.');
+        $this->requireManagedAdmin($request, $user);
+        abort_if($user->activated_at !== null, 422, 'This account is already active. Disable it instead.');
+
+        app(InvitationService::class)->revoke($request->user(), $user);
+
+        return response()->json(['message' => 'Invitation revoked.', 'account_status' => InvitationService::statusOf($user->fresh())]);
+    }
+
+    public function reactivateUser(Request $request, User $user)
+    {
+        $this->requireAbility($request, 'user.deactivate_platform', 'Only a Super Admin can perform this action.');
+        $this->requireManagedAdmin($request, $user);
+        abort_if($user->activated_at === null, 422, 'This person has not accepted their invitation yet. Resend the invitation instead.');
+
+        $user->update(['is_active' => true]);
+        $this->log($request, 'Activate', "Reactivated {$user->name} ({$user->email}).");
+
+        return response()->json(['message' => 'User reactivated.']);
     }
 
     private function sendMail(User $user, AccountMail $mail): void
@@ -742,6 +811,7 @@ class SuperAdminController extends Controller
     {
         $this->requireAbility($request, 'user.deactivate_platform', 'Only a Super Admin can perform this action.');
         abort_if($user->id === $request->user()->id, 422, 'You cannot deactivate your own account.');
+        $this->requireManagedAdmin($request, $user);
         $this->abortIfLastActiveAdmin($user, 'deactivating them');
         $this->abortIfHasOpenWork($user, 'deactivating them');
 

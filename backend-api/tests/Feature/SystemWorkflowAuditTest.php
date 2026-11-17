@@ -142,9 +142,9 @@ class SystemWorkflowAuditTest extends TestCase
         $this->custodian->createToken('old-session-one');
         $this->custodian->createToken('old-session-two');
         Sanctum::actingAs($this->admin, ['*']);
-        $this->postJson("/api/users/{$this->custodian->id}/resend-credentials")->assertOk()->assertJsonStructure(['temporary_password', 'email_sent']);
-        $this->assertSame(0, $this->custodian->tokens()->count());
-        $this->assertTrue($this->custodian->fresh()->must_change_password);
+        $this->postJson("/api/users/{$this->custodian->id}/resend-credentials")->assertOk()->assertJsonStructure(['email_sent']);
+        // The reset link itself signs nothing out; the old sessions end when the new password is chosen.
+        $this->assertSame(1, \App\Models\UserInvitation::where('user_id', $this->custodian->id)->where('purpose', 'reset')->count());
     }
 
     public function test_multi_mechanic_bulk_reassignment_notifies_all_outgoing_mechanics(): void

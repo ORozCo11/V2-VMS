@@ -32,6 +32,10 @@ Route::get('/files/{file}', [\App\Http\Controllers\ManagedFileController::class,
 // Rate-limited to blunt credential brute-forcing: 10 attempts/min per IP.
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
+// Invitation acceptance: the only way a new account gets its password. Tokens are single-use and expire in 24h.
+Route::get('/invitations/{token}', [\App\Http\Controllers\InvitationController::class, 'show'])->middleware('throttle:20,1');
+Route::post('/invitations/accept', [\App\Http\Controllers\InvitationController::class, 'accept'])->middleware('throttle:10,1');
+
 // Accounts are created by a Super Admin (for barangay Admins) or a barangay Admin
 // (for staff); there is no public sign-up.
 Route::get('/address-suggestions', [\App\Http\Controllers\AddressSuggestionController::class, 'index'])->middleware('throttle:20,1');
@@ -156,6 +160,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class, \App\Http\Middlewa
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{user}', [UserController::class, 'update']);
     Route::post('/users/{user}/resend-credentials', [UserController::class, 'resendCredentials'])->middleware('throttle:10,1');
+    Route::post('/users/{user}/revoke-invitation', [UserController::class, 'revokeInvitation'])->middleware('throttle:10,1');
     Route::put('/users/{user}/deactivate', [UserController::class, 'deactivate']);
     Route::put('/users/{user}/activate', [UserController::class, 'activate']);
 
@@ -173,6 +178,10 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class, \App\Http\Middlewa
     Route::post('/superadmin/barangays', [SuperAdminController::class, 'storeBarangay']);
     Route::post('/superadmin/barangays/{barangay}/admin', [SuperAdminController::class, 'storeAdmin'])->middleware('throttle:20,1');
     Route::post('/superadmin/users/{user}/resend-credentials', [SuperAdminController::class, 'resendCredentials'])->middleware('throttle:10,1');
+    Route::get('/superadmin/barangay-directory', [SuperAdminController::class, 'barangayDirectory']);
+    Route::get('/superadmin/barangays/{barangay}/admins', [SuperAdminController::class, 'barangayAdmins']);
+    Route::post('/superadmin/users/{user}/revoke-invitation', [SuperAdminController::class, 'revokeInvitation'])->middleware('throttle:10,1');
+    Route::put('/superadmin/users/{user}/reactivate', [SuperAdminController::class, 'reactivateUser']);
     Route::get('/superadmin/users', [SuperAdminController::class, 'users']);
     Route::put('/superadmin/users/{user}/deactivate', [SuperAdminController::class, 'deactivateUser']);
     Route::put('/superadmin/users/{user}/role', [SuperAdminController::class, 'updateUserRole']);

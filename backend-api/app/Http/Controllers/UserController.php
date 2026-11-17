@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\GuardsOpenWorkOnDeactivation;
 use App\Http\Controllers\Concerns\IssuesTemporaryPassword;
 use App\Http\Controllers\Concerns\UploadsImages;
 use App\Models\ActivityLog;
+use App\Services\InvitationService;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -94,7 +95,7 @@ class UserController extends Controller
         // approved, even if deactivated again later.
         $query->when($request->boolean('pending'), fn ($q) => $q->whereNull('approved_at'));
 
-        return $query->with(['barangay', 'city'])->latest('id')->get();
+        return $query->with(['barangay', 'city'])->latest('id')->get()->each(fn ($u) => $u->setAttribute('account_status', InvitationService::statusOf($u)));
     }
 
     public function store(Request $request)
@@ -118,30 +119,16 @@ class UserController extends Controller
         ]);
 
         $data = $this->normalizeRoles($request, $data);
-        // The system makes the temporary password; the Admin never types or sees a chosen one.
-        $data['password'] = Hash::make(Str::random(40));
-        $data['must_change_password'] = true;
-        $data['is_active'] = true;
-        // Created by an Admin directly, so already approved — without this
-        // stamp the account reads as a pending registration everywhere.
-        $data['approved_at'] = now();
-        // Always the creating Admin's own barangay — never client-supplied,
-        // so an Admin can't plant a user into a barangay they don't manage.
-        $data['barangay_id'] = $request->user()->barangay_id;
+        // Barangay and LGU come from the inviting Admin's own account, never from the request.
+        $admin = $request->user();
+        abort_if(! $admin->barangay_id, 403, 'Your account is not assigned to a barangay.');
 
-        if ($request->hasFile('photo')) {
-            $data['photo_url'] = $this->storeUploadedImage($request->file('photo'), 'profile-photos');
-        }
-        unset($data['photo']);
+        [$user, $emailed] = app(InvitationService::class)->invite(
+            $admin, $data['name'], $data['email'], $data['role'], $admin->barangay_id, $admin->barangay?->city_id,
+            array_filter(['phone' => $data['phone'] ?? null, 'address' => $data['address'] ?? null], fn ($v) => $v !== null),
+        );
 
-        $user = User::create($data);
-        $plain = $this->issueTemporaryPassword($user);
-        $emailed = $this->emailCredentials($user, $plain, $request->user()->name);
-
-        $this->log($request, 'Add', $user->id, "Created user \"{$user->name}\" ({$user->email}), role: " . implode('/', $user->roles ?? [$user->role]));
-
-        // The plain password is returned this once so it can be handed over in person if the email fails.
-        return response()->json($user->load('roleRows')->toArray() + ['temporary_password' => $plain, 'email_sent' => $emailed], 201);
+        return response()->json($user->load('roleRows')->toArray() + ['email_sent' => $emailed, 'account_status' => InvitationService::statusOf($user)], 201);
     }
 
     public function update(Request $request, User $user)
@@ -231,7 +218,7 @@ class UserController extends Controller
         return $user->fresh('roleRows');
     }
 
-    /** Replaces a staff member's password with a new emailed temporary one (lost or expired credentials). */
+    /** Sends a fresh invitation (pending accounts) or a password-reset link (active accounts). */
     public function resendCredentials(Request $request, User $user)
     {
         $this->requireAbility($request, 'user.edit', 'Only Admins can manage users.');
@@ -239,11 +226,23 @@ class UserController extends Controller
         abort_if($user->id === $request->user()->id, 422, 'Use Change Password for your own account.');
         abort_if($user->hasRole('Admin'), 403, 'Only the Super Admin can reset an Admin account.');
 
-        $plain = $this->issueTemporaryPassword($user);
-        $emailed = $this->emailCredentials($user, $plain, $request->user()->name);
-        $this->log($request, 'Edit', $user->id, "Sent new temporary credentials to \"{$user->name}\" ({$user->email}).");
+        $pending = $user->activated_at === null;
+        $emailed = app(InvitationService::class)->issue($user, $request->user(), $pending ? 'invite' : 'reset');
+        $this->log($request, 'Edit', $user->id, ($pending ? 'Resent the invitation to' : 'Sent a password-reset link to')." \"{$user->name}\" ({$user->email}).");
 
-        return response()->json(['temporary_password' => $plain, 'email_sent' => $emailed, 'email' => $user->email]);
+        return response()->json(['email_sent' => $emailed, 'email' => $user->email, 'account_status' => InvitationService::statusOf($user->fresh())]);
+    }
+
+    public function revokeInvitation(Request $request, User $user)
+    {
+        $this->requireAbility($request, 'user.edit', 'Only Admins can manage users.');
+        $this->requireSameBarangay($request, $user);
+        abort_if($user->activated_at !== null, 422, 'This account is already active. Disable it instead.');
+        abort_if($user->hasRole('Admin'), 403, 'Only the Super Admin can manage an Admin invitation.');
+
+        app(InvitationService::class)->revoke($request->user(), $user);
+
+        return response()->json(['message' => 'Invitation revoked.', 'account_status' => InvitationService::statusOf($user->fresh())]);
     }
 
     public function deactivate(Request $request, User $user)
@@ -268,6 +267,7 @@ class UserController extends Controller
     {
         $this->requireAbility($request, 'user.activate', 'Only Admins can manage users.');
         $this->requireSameBarangay($request, $user);
+        abort_if($user->activated_at === null, 422, 'This person has not accepted their invitation yet. Resend the invitation instead.');
 
         $data = $request->validate([
             // Only meaningful on a FIRST approval — Admin reviewing a

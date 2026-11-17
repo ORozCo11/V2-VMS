@@ -24,18 +24,19 @@ class TemporaryPasswordTest extends TestCase
         $this->admin = User::factory()->create(['role' => 'Admin', 'roles' => ['Admin'], 'barangay_id' => $barangay->id, 'approved_at' => now()]);
     }
 
+    /** Accounts issued before invitations existed may still hold a temporary password. */
     private function createCustodian(): User
     {
-        Sanctum::actingAs($this->admin, ['*']);
-        $created = $this->postJson('/api/users', [
-            'name' => 'New Custodian', 'email' => 'new.custodian@example.com', 'role' => 'Custodian',
-        ])->assertCreated()->assertJsonStructure(['temporary_password', 'email_sent']);
-        $this->temporary = $created->json('temporary_password');
+        $this->temporary = 'Temp-Pass-123';
+        $user = User::factory()->create([
+            'role' => 'Custodian', 'roles' => ['Custodian'], 'barangay_id' => $this->admin->barangay_id,
+            'password' => \Illuminate\Support\Facades\Hash::make($this->temporary), 'must_change_password' => true,
+        ]);
 
-        return User::where('email', 'new.custodian@example.com')->firstOrFail();
+        return $user;
     }
 
-    public function test_an_admin_created_account_must_change_its_temporary_password(): void
+    public function test_a_legacy_temporary_password_account_must_change_its_password(): void
     {
         $user = $this->createCustodian();
         $this->assertTrue($user->must_change_password);

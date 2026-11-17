@@ -36,6 +36,7 @@ class User extends Authenticatable
         'photo_url',
         'is_active',
         'approved_at',
+        'activated_at',
         'can_register_vehicles',
     ];
 
@@ -56,6 +57,7 @@ class User extends Authenticatable
         'must_change_password' => 'boolean',
         'temp_password_expires_at' => 'datetime',
         'approved_at' => 'datetime',
+        'activated_at' => 'datetime',
         'can_register_vehicles' => 'boolean',
     ];
 
@@ -72,6 +74,14 @@ class User extends Authenticatable
 
     protected static function booted(): void
     {
+        // Accounts created outside the invitation flow (seeders, factories, console) are active at once.
+        // The invitation flow passes an explicit null for `activated_at`, which keeps the account pending.
+        static::creating(function (User $user) {
+            if (! array_key_exists('activated_at', $user->getAttributes())) {
+                $user->activated_at = now();
+            }
+        });
+
         static::saved(function (User $user) {
             if ($user->pendingRoles === null) {
                 return;

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\City;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
@@ -24,11 +25,25 @@ use Illuminate\Support\Facades\Validator;
  */
 class CreateSuperAdmin extends Command
 {
-    protected $signature = 'superadmin:create';
+    protected $signature = 'superadmin:create {--city= : City/municipality (the LGU) this Super Admin governs: id or exact name}';
     protected $description = 'Interactively create a real Super Admin account (production-safe, no hardcoded credentials)';
 
     public function handle(): int
     {
+        // The LGU this Super Admin governs. Without one the account keeps the legacy platform-wide reach.
+        $city = null;
+        if ($this->option('city') !== null) {
+            $needle = (string) $this->option('city');
+            $matches = City::query()->when(ctype_digit($needle), fn ($q) => $q->where('id', (int) $needle), fn ($q) => $q->where('name', $needle))->get();
+            if ($matches->count() !== 1) {
+                $this->error($matches->isEmpty() ? "No city or municipality matches \"{$needle}\"." : "\"{$needle}\" matches several cities; pass the city id instead.");
+                return self::FAILURE;
+            }
+            $city = $matches->first();
+        } else {
+            $this->warn('No --city given: this Super Admin will not be limited to one LGU. Pass --city="Mandaue City" to scope it.');
+        }
+
         $name = $this->ask('Full name');
         if (!$name) {
             $this->error('A name is required.');
@@ -72,11 +87,12 @@ class CreateSuperAdmin extends Command
             'role' => 'Super Admin',
             'roles' => ['Super Admin'],
             'barangay_id' => null,
+            'city_id' => $city?->id,
             'is_active' => true,
             'approved_at' => now(),
         ]);
 
-        $this->info("Super Admin account created: {$user->email} (id {$user->id}).");
+        $this->info("Super Admin account created: {$user->email} (id {$user->id})".($city ? ", governing {$city->name}." : "."));
 
         return self::SUCCESS;
     }

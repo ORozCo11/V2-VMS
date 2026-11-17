@@ -22,7 +22,7 @@ class AdminCreatedUserApprovalTest extends TestCase
 
     private function createStaffAsAdmin(): User
     {
-        $admin = User::factory()->create(['role' => 'Admin', 'roles' => ['Admin'], 'approved_at' => now()]);
+        $admin = User::factory()->create(['role' => 'Admin', 'roles' => ['Admin'], 'approved_at' => now(), 'barangay_id' => \App\Models\Barangay::create(['name' => 'T Barangay', 'city_id' => \App\Models\City::create(['code' => 'T-C', 'name' => 'T City', 'province_id' => \App\Models\Province::create(['code' => 'T-P', 'name' => 'T Province'])->id])->id, 'psgc_code' => '9999900099'])->id]);
         Sanctum::actingAs($admin, ['*']);
 
         $id = $this->postJson('/api/users', [
@@ -42,9 +42,12 @@ class AdminCreatedUserApprovalTest extends TestCase
     }
 
     #[Test]
-    public function an_admin_created_user_is_approved_at_creation(): void
+    public function an_admin_created_user_is_pending_until_the_invitation_is_accepted(): void
     {
-        $this->assertNotNull($this->createStaffAsAdmin()->approved_at);
+        $user = $this->createStaffAsAdmin();
+        $this->assertNull($user->approved_at);
+        $this->assertNull($user->activated_at);
+        $this->assertFalse($user->is_active);
     }
 
     #[Test]

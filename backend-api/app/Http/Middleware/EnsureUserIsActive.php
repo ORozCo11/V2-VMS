@@ -18,6 +18,11 @@ class EnsureUserIsActive
     {
         $user = $request->user();
 
+        // A pending (never-activated) account has no access at all, whatever token it might hold.
+        if ($user && $user->activated_at === null) {
+            abort(401, 'This account has not been activated.');
+        }
+
         if ($user && !$user->is_active) {
             abort(401, 'This account has been deactivated.');
         }

@@ -127,7 +127,7 @@ function BarangayManagementTab({ barangays, users, onPromote, onAddedBarangay, o
     { label: 'City / Province', render: (b) => <div className="sa-stacked"><strong>{b.city_name || 'Not specified'}</strong><span>{b.province_name || 'Not specified'}</span></div> },
     { label: 'Staff Count', key: 'staff_count' },
     { label: 'Administrator Status', render: (b) => <div className="sa-stacked"><StatusBadge value={b.has_active_admin ? 'Active Admin' : 'No Active Admin'} /></div> },
-    { label: 'Actions', render: (b) => <div className="sa-row-actions"><button type="button" className="ghost-button" onClick={() => { setManagingId(b.id); setPickedUserId(''); }}>View / Manage</button>{needsAdmin(b) && <button type="button" className="ghost-button sa-icon-button sa-icon-confirm" aria-label={`Create Admin for ${b.name}`} title="Create Admin" onClick={() => setCreatingFor(b)}><Icon name="plus" size={17} /></button>}</div> },
+    { label: 'Actions', render: (b) => <div className="sa-row-actions"><button type="button" className="ghost-button" onClick={() => { setManagingId(b.id); setPickedUserId(''); }}>View / Manage</button>{needsAdmin(b) && <button type="button" className="ghost-button sa-icon-button sa-icon-confirm" aria-label={`Invite Admin for ${b.name}`} title="Invite Admin" onClick={() => setCreatingFor(b)}><Icon name="plus" size={17} /></button>}</div> },
   ];
   return <div className="superadmin-tab">
     {showAddForm && <AddBarangayForm existingBarangayIds={barangays.map((b) => String(b.id))} onAdded={(created) => { onAddedBarangay(created); onCloseAdd(); }} onCancel={onCloseAdd} />}
@@ -141,7 +141,7 @@ function BarangayManagementTab({ barangays, users, onPromote, onAddedBarangay, o
       <header className="sa-barangay-page-header"><button type="button" className="ghost-button" onClick={() => setManagingId(null)}><Icon name="arrowLeft" size={15} />Back to Barangays</button><h2>{managing.name}</h2><p>{[managing.city_name, managing.province_name].filter(Boolean).join(', ')}</p></header>
       <div className="sa-barangay-page-grid">
       <dl className="sa-detail-list"><dt>Registered staff</dt><dd>{managing.staff_count}</dd><dt>Administrator status</dt><dd><StatusBadge value={managing.has_active_admin ? 'Active Admin' : 'No Active Admin'} /></dd></dl>
-      {needsAdmin(managing) && <section className="sa-detail-section"><h3>Create Admin</h3><p>This barangay has no Administrator yet. Create the one Admin who will manage its Custodian and Maintenance accounts. A temporary password is emailed to them.</p><button type="button" className="primary-button" onClick={() => setCreatingFor(managing)}><Icon name="plus" size={15} />Create Admin</button></section>}
+      {needsAdmin(managing) && <section className="sa-detail-section"><h3>Invite Admin</h3><p>This barangay has no Administrator yet. Invite the one Admin who will manage its Custodian and Maintenance accounts. They receive an email invitation and choose their own password.</p><button type="button" className="primary-button" onClick={() => setCreatingFor(managing)}><Icon name="plus" size={15} />Invite Admin</button></section>}
       <section className="sa-detail-section sa-barangay-users"><h3>Users in this barangay</h3>{!candidates.length ? <p>No users yet.</p> : <ul className="sa-barangay-user-list">{candidates.map((account) => <li key={account.id}><div><strong>{account.name}</strong><span>{account.role}</span></div><StatusBadge value={account.is_active ? 'Active' : 'Inactive'} /></li>)}</ul>}</section>
       {!managing.has_active_admin && <section className="sa-detail-section"><h3>Recover Administrator</h3>{!activeCandidates.length ? <p>No active staff are available to promote.</p> : <><p>Promote an existing staff member to Admin while keeping their current roles and assigned responsibilities.</p><AdminFilterField label="Staff member"><SearchableSelect value={pickedUserId} onChange={(event) => setPickedUserId(event.target.value)}><option value="">Select a staff member</option>{activeCandidates.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.role}</option>)}</SearchableSelect></AdminFilterField><button type="button" className="primary-button" disabled={!pickedUserId} onClick={() => { const target = activeCandidates.find((account) => String(account.id) === pickedUserId); onRequestConfirmation({ title: 'Recover Administrator', message: `Promote ${target.name} to Admin for ${managing.name}?`, confirmLabel: 'Promote to Admin', variant: 'primary', onConfirm: async () => { const success = await onPromote(target); if (success) setManagingId(null); } }); }}>Promote to Admin</button></>}</section>}
       </div>
@@ -509,26 +509,51 @@ export default function SuperAdminWorkspace() {
     }
   };
 
-  const showCredentials = (data, title, lead) => setCredentials({ title, lead, email: data.email, temporary_password: data.temporary_password, email_sent: data.email_sent });
+  const showCredentials = (data, title, lead) => setCredentials({ title, lead, email: data.email, email_sent: data.email_sent });
 
   // Resolves to an error string (shown in the form) or undefined on success.
   const createAdmin = async (barangay, form) => {
     try {
       const { data } = await api.post(`/superadmin/barangays/${barangay.id}/admin`, form);
-      showCredentials({ ...data, email: data.email ?? form.email }, 'Admin created', 'Admin created.');
+      showCredentials({ ...data, email: data.email ?? form.email }, 'Invitation sent', 'Barangay Admin invited.');
       await loadAll();
     } catch (error) {
-      return apiError(error, 'Could not create the Admin. Check the email address and try again.');
+      return apiError(error, 'Could not invite the Admin. Check the email address and try again.');
     }
   };
 
   const resendCredentials = async (target) => {
     try {
       const { data } = await api.post(`/superadmin/users/${target.id}/resend-credentials`);
-      showCredentials({ ...data, email: data.email ?? target.email }, 'Credentials resent', 'New temporary password issued.');
+      showCredentials({ ...data, email: data.email ?? target.email }, target.account_status === 'active' ? 'Password reset sent' : 'Invitation resent', target.account_status === 'active' ? 'Reset link issued.' : 'New invitation issued.');
+      await loadAll();
       return true;
     } catch (error) {
-      setNotice({ type: 'error', text: apiError(error, `Could not resend credentials to ${target.name}. Try again.`) });
+      setNotice({ type: 'error', text: apiError(error, `Could not send the email to ${target.name}. Try again.`) });
+      return false;
+    }
+  };
+
+  const revokeInvitation = async (target) => {
+    try {
+      await api.post(`/superadmin/users/${target.id}/revoke-invitation`);
+      setNotice({ type: 'success', text: `Invitation for ${target.name} revoked.` });
+      await loadAll();
+      return true;
+    } catch (error) {
+      setNotice({ type: 'error', text: apiError(error, 'Could not revoke that invitation. Refresh the page and try again.') });
+      return false;
+    }
+  };
+
+  const reactivateUser = async (target) => {
+    try {
+      await api.put(`/superadmin/users/${target.id}/reactivate`);
+      setNotice({ type: 'success', text: `${target.name} can sign in again.` });
+      await loadAll();
+      return true;
+    } catch (error) {
+      setNotice({ type: 'error', text: apiError(error, 'Could not reactivate that account. Refresh the page and try again.') });
       return false;
     }
   };
@@ -647,7 +672,7 @@ export default function SuperAdminWorkspace() {
                 onDiscardBoundary={discardBoundary}
               />
             ) : activeTab === 'users' ? (
-              <UsersTab users={visibleUsers} onChangeRole={changeRole} onToggleActive={toggleActive} onResend={resendCredentials} onSendEmail={sendEmail} onRequestConfirmation={setConfirmDialog} />
+              <UsersTab users={visibleUsers} onInvite={createAdmin} onRevoke={revokeInvitation} onReactivate={reactivateUser} onChangeRole={changeRole} onToggleActive={toggleActive} onResend={resendCredentials} onSendEmail={sendEmail} onRequestConfirmation={setConfirmDialog} />
             ) : activeTab === 'activity' ? (
               <ActivityLogTab />
             ) : activeTab === 'support' ? (

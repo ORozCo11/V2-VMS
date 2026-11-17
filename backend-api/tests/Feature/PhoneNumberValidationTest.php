@@ -22,7 +22,7 @@ class PhoneNumberValidationTest extends TestCase
 
     private function admin(): User
     {
-        $admin = User::factory()->create(['role' => 'Admin', 'roles' => ['Admin']]);
+        $admin = User::factory()->create(['role' => 'Admin', 'roles' => ['Admin'], 'barangay_id' => \App\Models\Barangay::create(['name' => 'T Barangay', 'city_id' => \App\Models\City::create(['code' => 'T-C', 'name' => 'T City', 'province_id' => \App\Models\Province::create(['code' => 'T-P', 'name' => 'T Province'])->id])->id, 'psgc_code' => '9999900099'])->id]);
         Sanctum::actingAs($admin, ['*']);
 
         return $admin;
@@ -60,7 +60,7 @@ class PhoneNumberValidationTest extends TestCase
     public function updating_a_user_rejects_a_malformed_phone(string $phone): void
     {
         $this->admin();
-        $custodian = User::factory()->create(['role' => 'Custodian', 'roles' => ['Custodian']]);
+        $custodian = User::factory()->create(['role' => 'Custodian', 'roles' => ['Custodian'], 'barangay_id' => User::where('role', 'Admin')->value('barangay_id')]);
 
         $this->putJson("/api/users/{$custodian->id}", ['phone' => $phone])
             ->assertUnprocessable()->assertJsonValidationErrors('phone');
@@ -80,7 +80,7 @@ class PhoneNumberValidationTest extends TestCase
     public function a_valid_11_digit_phone_is_saved_on_every_path(): void
     {
         $admin = $this->admin();
-        $custodian = User::factory()->create(['role' => 'Custodian', 'roles' => ['Custodian']]);
+        $custodian = User::factory()->create(['role' => 'Custodian', 'roles' => ['Custodian'], 'barangay_id' => User::where('role', 'Admin')->value('barangay_id')]);
 
         $created = $this->postJson('/api/users', [
             'name' => 'Juan Dela Cruz',
@@ -103,7 +103,7 @@ class PhoneNumberValidationTest extends TestCase
     public function phone_can_still_be_cleared(): void
     {
         $this->admin();
-        $custodian = User::factory()->create(['role' => 'Custodian', 'roles' => ['Custodian'], 'phone' => '09171234567']);
+        $custodian = User::factory()->create(['role' => 'Custodian', 'roles' => ['Custodian'], 'barangay_id' => User::where('role', 'Admin')->value('barangay_id'), 'phone' => '09171234567']);
 
         $this->putJson("/api/users/{$custodian->id}", ['phone' => null])->assertOk();
         $this->assertNull($custodian->fresh()->phone);
